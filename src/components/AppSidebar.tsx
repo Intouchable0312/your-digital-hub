@@ -49,8 +49,8 @@ const AppSidebar = ({ tabs, activeTab, adminMode, onTabClick, onSettingsClick, i
                 )}
               </motion.button>
 
-              {/* Admin sub-link — only show if admin_url exists */}
-              {tab.admin_url && (
+              {/* Admin sub-link — only show if active tab and admin_url exists */}
+              {active && tab.admin_url && (
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   onClick={() => onTabClick(tab.id, true)}
