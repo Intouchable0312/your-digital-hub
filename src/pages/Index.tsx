@@ -1,16 +1,107 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState, useEffect } from "react";
+import { AnimatePresence } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import PinLock from "@/components/PinLock";
+import AppSidebar from "@/components/AppSidebar";
+import SettingsPanel from "@/components/SettingsPanel";
+import IframeViewer from "@/components/IframeViewer";
+import type { Database } from "@/integrations/supabase/types";
+import { toast } from "sonner";
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+type Tab = Database["public"]["Tables"]["tabs"]["Row"];
+
+const Index = () => {
+  const [unlocked, setUnlocked] = useState(false);
+  const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(true);
+  const queryClient = useQueryClient();
+
+  const { data: tabs = [] } = useQuery({
+    queryKey: ["tabs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tabs")
+        .select("*")
+        .order("sort_order", { ascending: true });
+      if (error) throw error;
+      return data as Tab[];
+    },
+    enabled: unlocked,
+  });
+
+  const addTab = useMutation({
+    mutationFn: async ({ name, icon, url }: { name: string; icon: string; url: string }) => {
+      const { error } = await supabase
+        .from("tabs")
+        .insert({ name, icon, url, sort_order: tabs.length });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tabs"] });
+      toast.success("Onglet ajouté !");
+    },
+    onError: () => toast.error("Erreur lors de l'ajout"),
+  });
+
+  const deleteTab = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("tabs").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ["tabs"] });
+      if (activeTab === id) {
+        setActiveTab(null);
+        setShowSettings(true);
+      }
+      toast.success("Onglet supprimé");
+    },
+    onError: () => toast.error("Erreur lors de la suppression"),
+  });
+
+  const handleTabClick = (id: string) => {
+    setActiveTab(id);
+    setShowSettings(false);
+  };
+
+  const handleSettingsClick = () => {
+    setActiveTab(null);
+    setShowSettings(true);
+  };
+
+  const currentTab = tabs.find((t) => t.id === activeTab);
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
-    </div>
+    <>
+      <AnimatePresence>
+        {!unlocked && <PinLock onUnlock={() => setUnlocked(true)} />}
+      </AnimatePresence>
+
+      {unlocked && (
+        <div className="flex h-screen w-full overflow-hidden">
+          <AppSidebar
+            tabs={tabs}
+            activeTab={activeTab}
+            onTabClick={handleTabClick}
+            onSettingsClick={handleSettingsClick}
+            isSettings={showSettings}
+          />
+          <main className="flex-1 h-full overflow-hidden">
+            {showSettings ? (
+              <SettingsPanel
+                tabs={tabs}
+                onAdd={(name, icon, url) => addTab.mutate({ name, icon, url })}
+                onDelete={(id) => deleteTab.mutate(id)}
+              />
+            ) : currentTab ? (
+              <IframeViewer url={currentTab.url} name={currentTab.name} />
+            ) : null}
+          </main>
+        </div>
+      )}
+    </>
   );
 };
-
-const Index = PlaceholderIndex;
 
 export default Index;
