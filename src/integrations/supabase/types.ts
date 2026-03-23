@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       tabs: {
         Row: {
+          admin_url: string | null
           created_at: string
           icon: string
           id: string
@@ -25,6 +26,7 @@ export type Database = {
           url: string
         }
         Insert: {
+          admin_url?: string | null
           created_at?: string
           icon?: string
           id?: string
@@ -34,6 +36,7 @@ export type Database = {
           url: string
         }
         Update: {
+          admin_url?: string | null
           created_at?: string
           icon?: string
           id?: string

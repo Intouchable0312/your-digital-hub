@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -14,6 +14,7 @@ type Tab = Database["public"]["Tables"]["tabs"]["Row"];
 const Index = () => {
   const [unlocked, setUnlocked] = useState(false);
   const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [adminMode, setAdminMode] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
   const queryClient = useQueryClient();
 
@@ -31,10 +32,10 @@ const Index = () => {
   });
 
   const addTab = useMutation({
-    mutationFn: async ({ name, icon, url }: { name: string; icon: string; url: string }) => {
+    mutationFn: async ({ name, icon, url, admin_url }: { name: string; icon: string; url: string; admin_url?: string }) => {
       const { error } = await supabase
         .from("tabs")
-        .insert({ name, icon, url, sort_order: tabs.length });
+        .insert({ name, icon, url, admin_url: admin_url || null, sort_order: tabs.length });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -53,6 +54,7 @@ const Index = () => {
       queryClient.invalidateQueries({ queryKey: ["tabs"] });
       if (activeTab === id) {
         setActiveTab(null);
+        setAdminMode(false);
         setShowSettings(true);
       }
       toast.success("Onglet supprimé");
@@ -60,17 +62,24 @@ const Index = () => {
     onError: () => toast.error("Erreur lors de la suppression"),
   });
 
-  const handleTabClick = (id: string) => {
+  const handleTabClick = (id: string, admin?: boolean) => {
     setActiveTab(id);
+    setAdminMode(!!admin);
     setShowSettings(false);
   };
 
   const handleSettingsClick = () => {
     setActiveTab(null);
+    setAdminMode(false);
     setShowSettings(true);
   };
 
   const currentTab = tabs.find((t) => t.id === activeTab);
+  const currentUrl = currentTab
+    ? adminMode && currentTab.admin_url
+      ? currentTab.admin_url
+      : currentTab.url
+    : null;
 
   return (
     <>
@@ -83,6 +92,7 @@ const Index = () => {
           <AppSidebar
             tabs={tabs}
             activeTab={activeTab}
+            adminMode={adminMode}
             onTabClick={handleTabClick}
             onSettingsClick={handleSettingsClick}
             isSettings={showSettings}
@@ -91,11 +101,13 @@ const Index = () => {
             {showSettings ? (
               <SettingsPanel
                 tabs={tabs}
-                onAdd={(name, icon, url) => addTab.mutate({ name, icon, url })}
+                onAdd={(name, icon, url, adminUrl) =>
+                  addTab.mutate({ name, icon, url, admin_url: adminUrl })
+                }
                 onDelete={(id) => deleteTab.mutate(id)}
               />
-            ) : currentTab ? (
-              <IframeViewer url={currentTab.url} name={currentTab.name} />
+            ) : currentUrl ? (
+              <IframeViewer url={currentUrl} name={currentTab!.name} />
             ) : null}
           </main>
         </div>

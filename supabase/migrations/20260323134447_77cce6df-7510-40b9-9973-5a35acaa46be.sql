@@ -1,0 +1,1 @@
+ALTER TABLE public.tabs ADD COLUMN admin_url TEXT DEFAULT NULL;
