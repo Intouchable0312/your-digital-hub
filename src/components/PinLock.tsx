@@ -80,11 +80,11 @@ const PinLock = ({ onUnlock }: PinLockProps) => {
 
       {/* Right panel — keypad */}
       <div className="flex-1 flex items-center justify-center">
-        <motion.div
-          initial={{ y: 16, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.15, duration: 0.4 }}
-          className="flex flex-col items-center w-full max-w-xs px-6"
+          <motion.div
+            initial={{ y: 16, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.15, duration: 0.4 }}
+            className="flex flex-col items-center w-full max-w-[260px] px-4"
         >
           {/* Header */}
           <div className="lg:hidden mb-8">
@@ -129,17 +129,16 @@ const PinLock = ({ onUnlock }: PinLockProps) => {
           </div>
 
           {/* Keypad */}
-          <div className="grid grid-cols-3 gap-3 w-full">
+          <div className="grid grid-cols-3 gap-2.5 w-full">
             {keys.map((key, i) => {
               if (key === "") return <div key={i} />;
               if (key === "del") {
                 return (
                   <motion.button
                     key={i}
-                    whileHover={{ backgroundColor: "hsl(var(--secondary))" }}
                     whileTap={{ scale: 0.93 }}
                     onClick={handleDelete}
-                    className="aspect-square rounded-xl bg-card border border-border flex items-center justify-center
+                    className="h-14 rounded-lg bg-transparent flex items-center justify-center
                       hover:bg-secondary transition-colors duration-100"
                   >
                     <Delete className="w-5 h-5 text-muted-foreground" />
@@ -149,12 +148,11 @@ const PinLock = ({ onUnlock }: PinLockProps) => {
               return (
                 <motion.button
                   key={i}
-                  whileHover={{ backgroundColor: "hsl(var(--secondary))" }}
                   whileTap={{ scale: 0.93 }}
                   onClick={() => handleKey(key)}
-                  className="aspect-square rounded-xl bg-card border border-border flex items-center justify-center
-                    text-xl font-display font-semibold text-foreground
-                    hover:bg-secondary transition-colors duration-100"
+                  className="h-14 rounded-lg bg-card border border-border flex items-center justify-center
+                    text-lg font-medium text-foreground
+                    hover:bg-secondary hover:border-primary/20 transition-all duration-100"
                 >
                   {key}
                 </motion.button>
