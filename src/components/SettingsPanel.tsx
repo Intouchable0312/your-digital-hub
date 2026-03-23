@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { icons, Plus, Trash2, ExternalLink } from "lucide-react";
+import { icons, Plus, Trash2, ExternalLink, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ type Tab = Database["public"]["Tables"]["tabs"]["Row"];
 
 interface SettingsPanelProps {
   tabs: Tab[];
-  onAdd: (name: string, icon: string, url: string) => void;
+  onAdd: (name: string, icon: string, url: string, adminUrl?: string) => void;
   onDelete: (id: string) => void;
 }
 
@@ -20,14 +20,22 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
   const [name, setName] = useState("");
   const [icon, setIcon] = useState("Globe");
   const [url, setUrl] = useState("");
+  const [adminUrl, setAdminUrl] = useState("");
+
+  const normalizeUrl = (u: string) => {
+    const trimmed = u.trim();
+    if (!trimmed) return "";
+    return trimmed.startsWith("http") ? trimmed : `https://${trimmed}`;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !url.trim()) return;
-    onAdd(name.trim(), icon, url.trim().startsWith("http") ? url.trim() : `https://${url.trim()}`);
+    onAdd(name.trim(), icon, normalizeUrl(url), adminUrl.trim() ? normalizeUrl(adminUrl) : undefined);
     setName("");
     setIcon("Globe");
     setUrl("");
+    setAdminUrl("");
     setShowForm(false);
   };
 
@@ -75,6 +83,21 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
                     className="bg-secondary border-border"
                     required
                   />
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground mb-2 block flex items-center gap-1.5">
+                    <Shield size={14} className="text-primary" />
+                    URL Admin (optionnel)
+                  </Label>
+                  <Input
+                    value={adminUrl}
+                    onChange={(e) => setAdminUrl(e.target.value)}
+                    placeholder="https://example.com/admin"
+                    className="bg-secondary border-border"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Lien d'administration accessible depuis la sidebar
+                  </p>
                 </div>
                 <div>
                   <Label className="text-sm text-muted-foreground mb-2 block">Icône</Label>
@@ -125,6 +148,12 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
                       <ExternalLink size={11} />
                       {tab.url}
                     </p>
+                    {tab.admin_url && (
+                      <p className="text-xs text-primary/70 truncate flex items-center gap-1 mt-0.5">
+                        <Shield size={11} />
+                        {tab.admin_url}
+                      </p>
+                    )}
                   </div>
                   <Button
                     variant="ghost"
