@@ -14,32 +14,36 @@ interface AppSidebarProps {
 
 const AppSidebar = ({ tabs, activeTab, onTabClick, onSettingsClick, isSettings }: AppSidebarProps) => {
   return (
-    <div className="w-[72px] h-screen bg-sidebar flex flex-col items-center py-6 border-r border-sidebar-border shrink-0">
-      {/* Logo / brand mark */}
-      <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center mb-8">
-        <span className="text-primary-foreground font-display font-bold text-lg">H</span>
+    <div className="w-[240px] h-screen bg-sidebar flex flex-col border-r border-sidebar-border shrink-0">
+      {/* Brand */}
+      <div className="px-6 py-6 border-b border-sidebar-border">
+        <h1 className="text-xl font-display font-extrabold tracking-tight text-foreground">
+          Vizion
+        </h1>
       </div>
 
-      {/* Tab icons */}
-      <div className="flex-1 flex flex-col items-center gap-2 overflow-y-auto py-2">
+      {/* Tab list */}
+      <div className="flex-1 flex flex-col gap-1 overflow-y-auto p-3">
         {tabs.map((tab) => {
           const Icon = icons[tab.icon as keyof typeof icons] || icons.Globe;
           const active = activeTab === tab.id;
           return (
             <motion.button
               key={tab.id}
-              whileHover={{ scale: 1.08 }}
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => onTabClick(tab.id)}
-              className={`relative w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200
-                ${active ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}
-              title={tab.name}
+              className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150
+                ${active
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground hover:bg-secondary"
+                }`}
             >
-              <Icon size={20} />
+              <Icon size={18} />
+              <span className="truncate">{tab.name}</span>
               {active && (
                 <motion.div
                   layoutId="sidebar-indicator"
-                  className="absolute -left-[20px] w-1 h-6 bg-primary rounded-r-full"
+                  className="absolute left-0 w-[3px] h-5 bg-sidebar-primary rounded-r-sm"
                 />
               )}
             </motion.button>
@@ -48,16 +52,20 @@ const AppSidebar = ({ tabs, activeTab, onTabClick, onSettingsClick, isSettings }
       </div>
 
       {/* Settings */}
-      <motion.button
-        whileHover={{ scale: 1.08 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={onSettingsClick}
-        className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200
-          ${isSettings ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}
-        title="Paramètres"
-      >
-        <Settings size={20} />
-      </motion.button>
+      <div className="p-3 border-t border-sidebar-border">
+        <motion.button
+          whileTap={{ scale: 0.98 }}
+          onClick={onSettingsClick}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150
+            ${isSettings
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : "text-sidebar-foreground hover:bg-secondary"
+            }`}
+        >
+          <Settings size={18} />
+          <span>Paramètres</span>
+        </motion.button>
+      </div>
     </div>
   );
 };
