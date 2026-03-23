@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { icons, Plus, Trash2, GripVertical, ExternalLink } from "lucide-react";
+import { icons, Plus, Trash2, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,20 +34,18 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
   return (
     <div className="h-full flex flex-col p-8 overflow-auto">
       <div className="max-w-2xl mx-auto w-full">
-        <h1 className="text-3xl font-display font-bold mb-2">Paramètres</h1>
-        <p className="text-muted-foreground mb-8">Gérez vos onglets et sites web</p>
+        <h1 className="text-2xl font-display font-bold mb-1 text-foreground">Paramètres</h1>
+        <p className="text-muted-foreground text-sm mb-8">Gérez vos onglets et sites web</p>
 
-        {/* Add button */}
         <Button
           onClick={() => setShowForm(!showForm)}
-          className="mb-6 rounded-2xl gap-2"
+          className="mb-6 gap-2"
           size="lg"
         >
           <Plus size={18} />
           Ajouter un onglet
         </Button>
 
-        {/* Add form */}
         <AnimatePresence>
           {showForm && (
             <motion.form
@@ -55,7 +53,7 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               onSubmit={handleSubmit}
-              className="bg-card rounded-3xl p-6 mb-8 border border-border overflow-hidden"
+              className="bg-card rounded-lg p-6 mb-8 border border-border overflow-hidden"
             >
               <div className="flex flex-col gap-5">
                 <div>
@@ -64,7 +62,7 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Mon site..."
-                    className="rounded-xl bg-secondary border-border"
+                    className="bg-secondary border-border"
                     required
                   />
                 </div>
@@ -74,7 +72,7 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
                     placeholder="https://example.com"
-                    className="rounded-xl bg-secondary border-border"
+                    className="bg-secondary border-border"
                     required
                   />
                 </div>
@@ -83,14 +81,13 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
                   <IconPicker value={icon} onChange={setIcon} />
                 </div>
                 <div className="flex gap-3">
-                  <Button type="submit" className="rounded-2xl flex-1">
+                  <Button type="submit" className="flex-1">
                     Ajouter
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => setShowForm(false)}
-                    className="rounded-2xl"
                   >
                     Annuler
                   </Button>
@@ -100,12 +97,11 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
           )}
         </AnimatePresence>
 
-        {/* Existing tabs list */}
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           {tabs.length === 0 && !showForm && (
             <div className="text-center py-16 text-muted-foreground">
-              <p className="text-lg">Aucun onglet pour le moment</p>
-              <p className="text-sm mt-1">Cliquez sur "Ajouter un onglet" pour commencer</p>
+              <p className="text-base">Aucun onglet pour le moment</p>
+              <p className="text-sm mt-1">Cliquez sur « Ajouter un onglet » pour commencer</p>
             </div>
           )}
           <AnimatePresence>
@@ -115,18 +111,18 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
                 <motion.div
                   key={tab.id}
                   layout
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="flex items-center gap-4 bg-card rounded-2xl p-4 border border-border group"
+                  exit={{ opacity: 0, x: -16 }}
+                  className="flex items-center gap-4 bg-card rounded-lg p-4 border border-border group"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-md bg-secondary flex items-center justify-center shrink-0">
                     <Icon size={18} className="text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{tab.name}</p>
-                    <p className="text-sm text-muted-foreground truncate flex items-center gap-1">
-                      <ExternalLink size={12} />
+                    <p className="font-medium text-sm truncate">{tab.name}</p>
+                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                      <ExternalLink size={11} />
                       {tab.url}
                     </p>
                   </div>
@@ -134,7 +130,7 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
                     variant="ghost"
                     size="icon"
                     onClick={() => onDelete(tab.id)}
-                    className="rounded-xl opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
                   >
                     <Trash2 size={16} />
                   </Button>
