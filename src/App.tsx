@@ -9,7 +9,23 @@ import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
 
-const App = () => (
+const App = () => {
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "COMMANDER_ALIEXPRESS") {
+        const { items, adresse } = event.data.payload;
+        if (window.eel) {
+          window.eel.commander_aliexpress(items, adresse);
+        } else {
+          console.warn("Eel non disponible. Ce site doit être ouvert via l'application Python.");
+        }
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
+  return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
