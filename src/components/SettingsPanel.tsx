@@ -4,8 +4,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import IconPicker from "./IconPicker";
+import FaceAdmin from "./face-auth/FaceAdmin";
+import FaceEnrollment from "./face-auth/FaceEnrollment";
 import type { Database } from "@/integrations/supabase/types";
+import type { FaceProfile } from "@/lib/face-recognition";
 
 type Tab = Database["public"]["Tables"]["tabs"]["Row"];
 
@@ -21,6 +26,16 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
   const [icon, setIcon] = useState("Globe");
   const [url, setUrl] = useState("");
   const [adminUrl, setAdminUrl] = useState("");
+  const [showEnrollment, setShowEnrollment] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data: faceProfiles = [], refetch: refetchProfiles } = useQuery({
+    queryKey: ["face_profiles"],
+    queryFn: async () => {
+      const { data } = await (supabase.from("face_profiles" as any) as any).select("*");
+      return (data || []) as FaceProfile[];
+    },
+  });
 
   const normalizeUrl = (u: string) => {
     const trimmed = u.trim();
@@ -39,17 +54,25 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
     setShowForm(false);
   };
 
+  if (showEnrollment) {
+    return (
+      <FaceEnrollment
+        onComplete={() => {
+          setShowEnrollment(false);
+          refetchProfiles();
+        }}
+        onCancel={() => setShowEnrollment(false)}
+      />
+    );
+  }
+
   return (
     <div className="h-full flex flex-col p-8 overflow-auto">
       <div className="max-w-2xl mx-auto w-full">
         <h1 className="text-2xl font-display font-bold mb-1 text-foreground">Paramètres</h1>
         <p className="text-muted-foreground text-sm mb-8">Gérez vos onglets et sites web</p>
 
-        <Button
-          onClick={() => setShowForm(!showForm)}
-          className="mb-6 gap-2"
-          size="lg"
-        >
+        <Button onClick={() => setShowForm(!showForm)} className="mb-6 gap-2" size="lg">
           <Plus size={18} />
           Ajouter un onglet
         </Button>
@@ -66,54 +89,27 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
               <div className="flex flex-col gap-5">
                 <div>
                   <Label className="text-sm text-muted-foreground mb-2 block">Nom de l'onglet</Label>
-                  <Input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Mon site..."
-                    className="bg-secondary border-border"
-                    required
-                  />
+                  <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Mon site..." className="bg-secondary border-border" required />
                 </div>
                 <div>
                   <Label className="text-sm text-muted-foreground mb-2 block">URL du site</Label>
-                  <Input
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://example.com"
-                    className="bg-secondary border-border"
-                    required
-                  />
+                  <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com" className="bg-secondary border-border" required />
                 </div>
                 <div>
                   <Label className="text-sm text-muted-foreground mb-2 block flex items-center gap-1.5">
                     <Shield size={14} className="text-primary" />
                     URL Admin (optionnel)
                   </Label>
-                  <Input
-                    value={adminUrl}
-                    onChange={(e) => setAdminUrl(e.target.value)}
-                    placeholder="https://example.com/admin"
-                    className="bg-secondary border-border"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1.5">
-                    Lien d'administration accessible depuis la sidebar
-                  </p>
+                  <Input value={adminUrl} onChange={(e) => setAdminUrl(e.target.value)} placeholder="https://example.com/admin" className="bg-secondary border-border" />
+                  <p className="text-xs text-muted-foreground mt-1.5">Lien d'administration accessible depuis la sidebar</p>
                 </div>
                 <div>
                   <Label className="text-sm text-muted-foreground mb-2 block">Icône</Label>
                   <IconPicker value={icon} onChange={setIcon} />
                 </div>
                 <div className="flex gap-3">
-                  <Button type="submit" className="flex-1">
-                    Ajouter
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowForm(false)}
-                  >
-                    Annuler
-                  </Button>
+                  <Button type="submit" className="flex-1">Ajouter</Button>
+                  <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Annuler</Button>
                 </div>
               </div>
             </motion.form>
@@ -168,6 +164,13 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
             })}
           </AnimatePresence>
         </div>
+
+        {/* Section reconnaissance faciale */}
+        <FaceAdmin
+          profiles={faceProfiles}
+          onRefresh={() => refetchProfiles()}
+          onReenroll={() => setShowEnrollment(true)}
+        />
       </div>
     </div>
   );
