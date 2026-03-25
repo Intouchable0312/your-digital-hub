@@ -176,31 +176,31 @@ export const ENROLLMENT_STEPS: EnrollmentStep[] = [
     id: "front",
     title: "Regardez droit devant",
     description: "Visage centré, regard face caméra, ne bougez pas.",
-    validate: (m) => Math.abs(m.yaw) < 0.08 && Math.abs(m.pitch - 0.32) < 0.18 && m.centered && m.faceArea > 0.08,
+    validate: (m) => Math.abs(m.yaw) < 0.15 && m.pitch > 0.15 && m.pitch < 0.55 && m.centered && m.faceArea > 0.04,
   },
   {
     id: "left",
     title: "Tournez légèrement à gauche",
     description: "Orientez doucement votre tête vers votre gauche jusqu'à validation.",
-    validate: (m) => m.yaw < -0.11 && m.centered && m.faceArea > 0.07,
+    validate: (m) => m.yaw < -0.08 && m.centered && m.faceArea > 0.035,
   },
   {
     id: "right",
     title: "Tournez légèrement à droite",
     description: "Orientez doucement votre tête vers votre droite jusqu'à validation.",
-    validate: (m) => m.yaw > 0.11 && m.centered && m.faceArea > 0.07,
+    validate: (m) => m.yaw > 0.08 && m.centered && m.faceArea > 0.035,
   },
   {
     id: "up",
     title: "Levez légèrement le menton",
     description: "Levez un peu la tête sans sortir du cadre.",
-    validate: (m) => m.pitch < 0.22 && m.centered && m.faceArea > 0.07,
+    validate: (m) => m.pitch < 0.2 && m.centered && m.faceArea > 0.035,
   },
   {
     id: "down",
     title: "Baissez légèrement le menton",
     description: "Inclinez doucement la tête vers le bas jusqu'à validation.",
-    validate: (m) => m.pitch > 0.42 && m.centered && m.faceArea > 0.07,
+    validate: (m) => m.pitch > 0.45 && m.centered && m.faceArea > 0.035,
   },
 ];
 
