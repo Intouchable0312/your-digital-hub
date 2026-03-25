@@ -1,4 +1,4 @@
-import { icons, Settings, Shield } from "lucide-react";
+import { icons, Settings, Shield, Home, User } from "lucide-react";
 import { motion } from "framer-motion";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -11,17 +11,60 @@ interface AppSidebarProps {
   onTabClick: (id: string, admin?: boolean) => void;
   onSettingsClick: () => void;
   isSettings: boolean;
+  onHomeClick?: () => void;
+  isHome?: boolean;
+  profileName?: string;
 }
 
-const AppSidebar = ({ tabs, activeTab, adminMode, onTabClick, onSettingsClick, isSettings }: AppSidebarProps) => {
+const AppSidebar = ({
+  tabs,
+  activeTab,
+  adminMode,
+  onTabClick,
+  onSettingsClick,
+  isSettings,
+  onHomeClick,
+  isHome,
+  profileName,
+}: AppSidebarProps) => {
   return (
     <div className="w-[240px] h-screen bg-sidebar flex flex-col border-r border-sidebar-border shrink-0">
-      {/* Brand */}
-      <div className="px-6 py-6 border-b border-sidebar-border">
-        <h1 className="text-xl font-display font-extrabold tracking-tight text-foreground">
-          Vizion
-        </h1>
+      {/* Brand + Profil */}
+      <div className="px-6 py-5 border-b border-sidebar-border">
+        <h1 className="text-xl font-display font-extrabold tracking-tight text-foreground">Vizion</h1>
+        {profileName && (
+          <div className="flex items-center gap-2 mt-2">
+            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+              <User size={12} className="text-primary" />
+            </div>
+            <span className="text-xs text-muted-foreground truncate">{profileName}</span>
+          </div>
+        )}
       </div>
+
+      {/* Accueil */}
+      {onHomeClick && (
+        <div className="px-3 pt-3">
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            onClick={onHomeClick}
+            className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150
+              ${isHome
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground hover:bg-secondary"
+              }`}
+          >
+            <Home size={18} />
+            <span>Accueil</span>
+            {isHome && (
+              <motion.div
+                layoutId="sidebar-indicator"
+                className="absolute left-0 w-[3px] h-5 bg-sidebar-primary rounded-r-sm"
+              />
+            )}
+          </motion.button>
+        </div>
+      )}
 
       {/* Tab list */}
       <div className="flex-1 flex flex-col gap-1 overflow-y-auto p-3">
@@ -49,7 +92,6 @@ const AppSidebar = ({ tabs, activeTab, adminMode, onTabClick, onSettingsClick, i
                 )}
               </motion.button>
 
-              {/* Admin sub-link — only show if active tab and admin_url exists */}
               {active && tab.admin_url && (
                 <motion.button
                   whileTap={{ scale: 0.98 }}
