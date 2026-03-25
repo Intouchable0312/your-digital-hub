@@ -1,10 +1,16 @@
-import { useState, useRef, useCallback } from "react";
+import { useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Check, Camera, User } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { ArrowLeft, Check, Camera, User, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import FaceScanner from "./FaceScanner";
-import type { FaceDetectionResult } from "@/lib/face-recognition";
+import {
+  ENROLLMENT_STEPS,
+  createProfile,
+  getPoseMetrics,
+  hasSimilarProfile,
+  upsertLocalProfile,
+  type FaceDetectionResult,
+} from "@/lib/face-recognition";
 import { toast } from "sonner";
 
 interface FaceEnrollmentProps {
@@ -12,190 +18,226 @@ interface FaceEnrollmentProps {
   onCancel: () => void;
 }
 
-const REQUIRED_CAPTURES = 5;
+type EnrollmentState = "name" | "capture" | "saving" | "done";
+
+const FRAMES_REQUIRED = 4;
 
 const FaceEnrollment = ({ onComplete, onCancel }: FaceEnrollmentProps) => {
-  const [step, setStep] = useState<"name" | "capture" | "saving" | "done">("name");
+  const [state, setState] = useState<EnrollmentState>("name");
   const [name, setName] = useState("");
-  const [captures, setCaptures] = useState<number[][]>([]);
-  const lastCaptureRef = useRef(0);
-  const captureCountRef = useRef(0);
+  const [capturedDescriptors, setCapturedDescriptors] = useState<number[][]>([]);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [scannerStatus, setScannerStatus] = useState<"idle" | "scanning" | "detected" | "success" | "error">("scanning");
+  const [statusMessage, setStatusMessage] = useState("Suivez précisément la consigne affichée.");
+  const [validationFrames, setValidationFrames] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
+  const duplicateCheckDoneRef = useRef(false);
+  const savingRef = useRef(false);
 
-  const handleNameSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const currentStep = ENROLLMENT_STEPS[currentStepIndex];
+  const progress = useMemo(() => ((currentStepIndex + Math.min(validationFrames / FRAMES_REQUIRED, 1)) / ENROLLMENT_STEPS.length) * 100, [currentStepIndex, validationFrames]);
+
+  const handleNameSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
     if (!name.trim()) return;
-    setStep("capture");
+    setState("capture");
+    setScannerStatus("scanning");
+    setStatusMessage(ENROLLMENT_STEPS[0].description);
   };
 
-  const handleFaceDetected = useCallback(
-    (result: FaceDetectionResult) => {
-      if (step !== "capture") return;
-      const now = Date.now();
-      if (now - lastCaptureRef.current < 800) return; // 800ms entre captures
-      lastCaptureRef.current = now;
+  const saveProfile = (descriptors: number[][]) => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setState("saving");
+    setIsSaving(true);
 
-      const newCaptures = [...captures, result.descriptor];
-      captureCountRef.current = newCaptures.length;
-      setCaptures(newCaptures);
+    const profile = createProfile(name.trim(), descriptors);
+    upsertLocalProfile(profile);
+    setState("done");
+    setIsSaving(false);
+    toast.success("Profil enregistré avec succès");
+    setTimeout(onComplete, 900);
+  };
 
-      if (newCaptures.length >= REQUIRED_CAPTURES) {
-        saveProfile(newCaptures);
+  const validateCurrentStep = (result: FaceDetectionResult) => {
+    if (state !== "capture" || !currentStep || savingRef.current) return;
+
+    const video = document.querySelector("video");
+    if (!(video instanceof HTMLVideoElement) || video.readyState < 2) return;
+
+    if (!duplicateCheckDoneRef.current) {
+      duplicateCheckDoneRef.current = true;
+      if (hasSimilarProfile(result.descriptor)) {
+        setScannerStatus("error");
+        setStatusMessage("Ce visage ressemble déjà fortement à un profil existant.");
+        toast.error("Profil déjà enregistré ou très similaire");
+        setTimeout(() => {
+          duplicateCheckDoneRef.current = false;
+          setScannerStatus("scanning");
+          setStatusMessage(currentStep.description);
+        }, 1200);
+        return;
       }
-    },
-    [step, captures]
-  );
+    }
 
-  const saveProfile = async (descriptors: number[][]) => {
-    setStep("saving");
-    try {
-      const { error } = await (supabase.from("face_profiles" as any) as any).insert({
-        name: name.trim(),
-        descriptors,
-      });
-      if (error) throw error;
-      setStep("done");
-      toast.success("Profil enregistré avec succès");
-      setTimeout(onComplete, 1200);
-    } catch (err) {
-      console.error("[Enrollment] Save error:", err);
-      toast.error("Erreur lors de l'enregistrement");
-      setCaptures([]);
-      captureCountRef.current = 0;
-      setStep("capture");
+    const metrics = getPoseMetrics(result, video);
+    const valid = currentStep.validate(metrics);
+
+    if (!valid) {
+      setValidationFrames(0);
+      setScannerStatus("scanning");
+      setStatusMessage(currentStep.description);
+      return;
+    }
+
+    const nextFrames = validationFrames + 1;
+    setValidationFrames(nextFrames);
+    setScannerStatus("detected");
+    setStatusMessage(`Validation ${nextFrames}/${FRAMES_REQUIRED} — maintenez la position.`);
+
+    if (nextFrames < FRAMES_REQUIRED) return;
+
+    const nextDescriptors = [...capturedDescriptors, result.descriptor];
+    setCapturedDescriptors(nextDescriptors);
+    setValidationFrames(0);
+    setScannerStatus("success");
+    setStatusMessage(`Capture validée : ${currentStep.title}`);
+
+    setTimeout(() => {
+      const nextStepIndex = currentStepIndex + 1;
+      if (nextStepIndex >= ENROLLMENT_STEPS.length) {
+        saveProfile(nextDescriptors);
+        return;
+      }
+
+      setCurrentStepIndex(nextStepIndex);
+      setScannerStatus("scanning");
+      setStatusMessage(ENROLLMENT_STEPS[nextStepIndex].description);
+    }, 650);
+  };
+
+  const handleScanError = (error: string) => {
+    if (error === "multiple_faces") {
+      setScannerStatus("error");
+      setValidationFrames(0);
+      setStatusMessage("Un seul visage doit être visible pendant l'enrôlement.");
+      return;
+    }
+
+    if (error === "no_face") {
+      setValidationFrames(0);
+      setScannerStatus("scanning");
+      setStatusMessage(currentStep?.description || "Cadrez votre visage pour continuer.");
+      return;
+    }
+
+    if (error === "camera_denied") {
+      setScannerStatus("error");
+      setStatusMessage("Accès caméra refusé. Autorisez la caméra puis recommencez.");
     }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: "linear-gradient(145deg, #08080f 0%, #0d0d1a 50%, #080810 100%)" }}
-    >
-      <div className="relative z-10 flex flex-col items-center gap-6 w-full max-w-sm px-6">
-        {/* Bouton retour */}
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={onCancel}
-          className="absolute top-6 left-6 text-white/30 hover:text-white/60 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </motion.button>
-
-        <h2 className="text-xl font-display font-bold text-white/90">Nouveau profil</h2>
-
-        <AnimatePresence mode="wait">
-          {/* Étape 1 : Nom */}
-          {step === "name" && (
-            <motion.form
-              key="name"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              onSubmit={handleNameSubmit}
-              className="w-full flex flex-col items-center gap-6"
-            >
-              <div className="w-20 h-20 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
-                <User className="w-8 h-8 text-white/30" />
-              </div>
-              <div className="w-full">
-                <label className="text-white/40 text-xs mb-2 block">Nom du profil</label>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Votre nom…"
-                  autoFocus
-                  required
-                  className="bg-white/[0.06] border-white/10 text-white placeholder:text-white/20 focus:border-white/20"
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full py-3 rounded-xl bg-white/10 border border-white/10 text-white font-medium text-sm hover:bg-white/15 transition-colors"
-              >
-                Continuer
-              </button>
-            </motion.form>
-          )}
-
-          {/* Étape 2 : Capture */}
-          {step === "capture" && (
-            <motion.div
-              key="capture"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="flex flex-col items-center gap-5"
-            >
-              <FaceScanner
-                active={true}
-                status={captures.length >= REQUIRED_CAPTURES ? "success" : "scanning"}
-                onFaceDetected={handleFaceDetected}
-                onError={() => {}}
-              />
-
-              {/* Progression */}
-              <div className="flex flex-col items-center gap-3">
-                <div className="flex gap-2">
-                  {Array.from({ length: REQUIRED_CAPTURES }).map((_, i) => (
-                    <motion.div
-                      key={i}
-                      className={`w-2.5 h-2.5 rounded-full transition-colors duration-300 ${
-                        i < captures.length ? "bg-green-400" : "bg-white/10"
-                      }`}
-                      animate={i === captures.length - 1 && i < REQUIRED_CAPTURES ? { scale: [1, 1.4, 1] } : {}}
-                      transition={{ duration: 0.2 }}
-                    />
-                  ))}
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.14),transparent_35%),radial-gradient(circle_at_bottom_right,hsl(var(--primary)/0.08),transparent_30%)]" />
+      <div className="relative z-10 flex w-full max-w-6xl items-center gap-12 px-8">
+        <div className="hidden lg:block max-w-md">
+          <h2 className="text-4xl font-display font-extrabold tracking-tight text-foreground">Création du profil</h2>
+          <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+            Suivez chaque consigne et attendez la validation réelle avant de passer à l'étape suivante. Chaque capture doit être stable et conforme.
+          </p>
+          <div className="mt-8 rounded-xl border bg-card p-5 shadow-sm">
+            <div className="mb-3 flex items-center justify-between text-sm">
+              <span className="font-medium text-foreground">Progression</span>
+              <span className="text-muted-foreground">{Math.min(currentStepIndex + 1, ENROLLMENT_STEPS.length)}/{ENROLLMENT_STEPS.length}</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-secondary">
+              <motion.div className="h-full bg-primary" animate={{ width: `${progress}%` }} />
+            </div>
+            <div className="mt-5 grid gap-3">
+              {ENROLLMENT_STEPS.map((step, index) => (
+                <div key={step.id} className={`rounded-lg border px-4 py-3 text-sm ${index === currentStepIndex ? "border-primary/30 bg-primary/5 text-foreground" : index < currentStepIndex ? "border-primary/20 bg-primary/5 text-foreground" : "bg-background text-muted-foreground"}`}>
+                  <div className="flex items-center gap-2 font-medium">
+                    {index < currentStepIndex ? <Check className="h-4 w-4 text-primary" /> : <Camera className="h-4 w-4 text-primary" />}
+                    {step.title}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{step.description}</p>
                 </div>
-                <p className="text-white/40 text-sm">
-                  {captures.length < REQUIRED_CAPTURES ? (
-                    <>
-                      <Camera className="w-3.5 h-3.5 inline mr-1.5" />
-                      Capture {captures.length}/{REQUIRED_CAPTURES} — bougez légèrement la tête
-                    </>
-                  ) : (
-                    "Captures terminées !"
-                  )}
-                </p>
-              </div>
-            </motion.div>
-          )}
+              ))}
+            </div>
+          </div>
+        </div>
 
-          {/* Étape 3 : Sauvegarde */}
-          {step === "saving" && (
-            <motion.div
-              key="saving"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex flex-col items-center gap-4 py-16"
-            >
-              <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-              <p className="text-white/40 text-sm">Enregistrement du profil…</p>
-            </motion.div>
-          )}
+        <div className="relative w-full max-w-md rounded-2xl border bg-card p-8 shadow-sm">
+          <button onClick={onCancel} className="absolute left-6 top-6 text-muted-foreground transition-colors hover:text-foreground">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
 
-          {/* Étape 4 : Terminé */}
-          {step === "done" && (
-            <motion.div
-              key="done"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="flex flex-col items-center gap-4 py-16"
-            >
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring" }}
-                className="w-16 h-16 rounded-full bg-green-500/10 border border-green-400/20 flex items-center justify-center"
-              >
-                <Check className="w-7 h-7 text-green-400" />
+          <AnimatePresence mode="wait">
+            {state === "name" && (
+              <motion.form key="name" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onSubmit={handleNameSubmit} className="flex flex-col items-center gap-6 pt-8">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+                  <User className="h-7 w-7 text-primary" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-xl font-display font-bold text-foreground">Nom du profil</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">Donnez un nom clair au visage autorisé.</p>
+                </div>
+                <div className="w-full">
+                  <label className="mb-2 block text-xs text-muted-foreground">Nom affiché</label>
+                  <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ex. Zakaria" className="bg-background" autoFocus required />
+                </div>
+                <button type="submit" className="w-full rounded-lg bg-primary py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
+                  Continuer
+                </button>
+              </motion.form>
+            )}
+
+            {state === "capture" && currentStep && (
+              <motion.div key="capture" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-5 pt-6">
+                <div className="text-center">
+                  <p className="text-xs font-medium uppercase tracking-[0.22em] text-primary">Étape {currentStepIndex + 1}</p>
+                  <h3 className="mt-2 text-xl font-display font-bold text-foreground">{currentStep.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{statusMessage}</p>
+                </div>
+
+                <FaceScanner active status={scannerStatus} onFaceDetected={validateCurrentStep} onError={handleScanError} />
+
+                <div className="w-full rounded-xl border bg-background p-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-foreground">Validation stricte</span>
+                    <span className="text-muted-foreground">{validationFrames}/{FRAMES_REQUIRED}</span>
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary">
+                    <motion.div className="h-full bg-primary" animate={{ width: `${(validationFrames / FRAMES_REQUIRED) * 100}%` }} />
+                  </div>
+                  <div className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 text-primary" />
+                    La capture n'est validée que si la pose demandée est réellement détectée plusieurs fois de suite.
+                  </div>
+                </div>
               </motion.div>
-              <p className="text-white/70 text-sm font-medium">Profil « {name} » enregistré</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+
+            {state === "saving" && (
+              <motion.div key="saving" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-4 py-16">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+                <p className="text-sm text-muted-foreground">Enregistrement du profil…</p>
+                {isSaving && <p className="text-xs text-muted-foreground">Descripteurs uniquement, aucune image brute.</p>}
+              </motion.div>
+            )}
+
+            {state === "done" && (
+              <motion.div key="done" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center gap-4 py-16">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                  <Check className="h-7 w-7 text-primary" />
+                </div>
+                <p className="text-base font-medium text-foreground">Profil « {name} » enregistré</p>
+                <p className="text-sm text-muted-foreground">Vous allez être redirigé automatiquement.</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </motion.div>
   );

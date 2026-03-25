@@ -14,30 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      face_profiles: {
-        Row: {
-          created_at: string
-          descriptors: Json
-          id: string
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          descriptors?: Json
-          id?: string
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          descriptors?: Json
-          id?: string
-          name?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       tabs: {
         Row: {
           admin_url: string | null
