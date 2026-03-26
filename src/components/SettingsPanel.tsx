@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import IconPicker from "./IconPicker";
 import FaceAdmin from "./face-auth/FaceAdmin";
 import FaceEnrollment from "./face-auth/FaceEnrollment";
-import { getLocalProfiles, type FaceProfile } from "@/lib/face-recognition";
+import { getProfiles, type FaceProfile } from "@/lib/face-recognition";
 import type { Database } from "@/integrations/supabase/types";
 
 type Tab = Database["public"]["Tables"]["tabs"]["Row"];
