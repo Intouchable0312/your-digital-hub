@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ScanFace, UserPlus, AlertTriangle, Loader2 } from "lucide-react";
+import { ScanFace, AlertTriangle, Loader2, ShieldCheck } from "lucide-react";
 import {
   loadModels,
   compareFaces,
@@ -17,34 +17,18 @@ interface FaceAuthProps {
   onUnlock: (profileName: string) => void;
 }
 
-type AuthState = "loading" | "consent" | "no_profiles" | "scanning" | "success" | "error";
+type AuthState = "loading" | "consent" | "enrolling" | "scanning" | "success" | "error";
 
 const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
   const [state, setState] = useState<AuthState>("loading");
   const [profiles, setProfiles] = useState<FaceProfile[]>([]);
   const [matchedName, setMatchedName] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const [showEnrollment, setShowEnrollment] = useState(false);
   const [scannerStatus, setScannerStatus] = useState<"idle" | "scanning" | "detected" | "success" | "error">("idle");
   const prevBoxRef = useRef<FaceDetectionResult["box"] | null>(null);
   const matchLockRef = useRef(false);
 
   const threshold = parseFloat(localStorage.getItem("face_threshold") || "0.52");
-  const hasConsent = () => localStorage.getItem("face_consent") === "true";
-
-  const loadProfiles = useCallback(() => {
-    const nextProfiles = getLocalProfiles();
-    setProfiles(nextProfiles);
-
-    if (nextProfiles.length === 0) {
-      setState("no_profiles");
-      setScannerStatus("idle");
-      return;
-    }
-
-    setState("scanning");
-    setScannerStatus("scanning");
-  }, []);
 
   const init = useCallback(async () => {
     setState("loading");
@@ -53,25 +37,39 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
 
     try {
       await loadModels();
-      if (!hasConsent()) {
+      const existingProfiles = getLocalProfiles();
+      setProfiles(existingProfiles);
+
+      if (existingProfiles.length === 0) {
+        // No profiles at all → show consent then enrollment
         setState("consent");
-        return;
+      } else {
+        // Profiles exist → go straight to scanning
+        setState("scanning");
+        setScannerStatus("scanning");
       }
-      loadProfiles();
     } catch (error) {
       console.error("[FaceAuth] Model loading failed:", error);
       setErrorMsg("Impossible de charger la reconnaissance faciale.");
       setState("error");
     }
-  }, [loadProfiles]);
+  }, []);
 
   useEffect(() => {
     void init();
   }, [init]);
 
   const handleConsent = () => {
-    localStorage.setItem("face_consent", "true");
-    loadProfiles();
+    // User accepted → go to enrollment
+    setState("enrolling");
+  };
+
+  const handleEnrollmentComplete = () => {
+    // After enrollment, reload profiles and start scanning
+    const newProfiles = getLocalProfiles();
+    setProfiles(newProfiles);
+    setState("scanning");
+    setScannerStatus("scanning");
   };
 
   const handleFaceDetected = useCallback(
@@ -116,7 +114,7 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
 
   const handleScanError = useCallback((error: string) => {
     if (error === "multiple_faces") {
-      setErrorMsg("Plusieurs visages détectés — un seul visage autorisé.");
+      setErrorMsg("Plusieurs visages détectés — un seul autorisé.");
       setScannerStatus("error");
       setTimeout(() => {
         setScannerStatus("scanning");
@@ -131,14 +129,12 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
     }
   }, []);
 
-  if (showEnrollment) {
+  // Enrollment flow (first time only)
+  if (state === "enrolling") {
     return (
       <FaceEnrollment
-        onComplete={() => {
-          setShowEnrollment(false);
-          loadProfiles();
-        }}
-        onCancel={() => setShowEnrollment(false)}
+        onComplete={handleEnrollmentComplete}
+        onCancel={() => setState("consent")}
       />
     );
   }
@@ -155,6 +151,7 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
       <div className="absolute inset-0 bg-[linear-gradient(135deg,hsl(var(--background)),hsl(var(--secondary)))] opacity-95" />
 
       <div className="relative z-10 flex w-full max-w-5xl items-center justify-center gap-16 px-8">
+        {/* Left branding panel */}
         <div className="hidden lg:block max-w-sm">
           <motion.h1
             initial={{ opacity: 0, y: 14 }}
@@ -164,91 +161,85 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
             Vizion
           </motion.h1>
           <p className="mt-5 text-base leading-relaxed text-muted-foreground">
-            Authentification visuelle locale, guidée et fluide. Vos descripteurs restent minimisés et stockés côté navigateur.
+            Authentification par reconnaissance faciale. Seuls les visages autorisés peuvent accéder à cet espace.
           </p>
           <div className="mt-8 grid gap-3">
-            <div className="rounded-lg border bg-card px-4 py-3 text-sm text-card-foreground shadow-sm">Scan local dans le navigateur</div>
-            <div className="rounded-lg border bg-card px-4 py-3 text-sm text-card-foreground shadow-sm">Refus multi-visages et contrôle de stabilité</div>
-            <div className="rounded-lg border bg-card px-4 py-3 text-sm text-card-foreground shadow-sm">Consentement + suppression des profils</div>
+            <div className="rounded-lg border bg-card px-4 py-3 text-sm text-card-foreground shadow-sm flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              Vérification en temps réel
+            </div>
+            <div className="rounded-lg border bg-card px-4 py-3 text-sm text-card-foreground shadow-sm flex items-center gap-2">
+              <ScanFace className="h-4 w-4 text-primary" />
+              Descripteurs stockés localement
+            </div>
           </div>
         </div>
 
+        {/* Right card */}
         <div className="w-full max-w-md rounded-2xl border bg-card/95 p-8 shadow-sm backdrop-blur">
-          {state === "loading" && (
-            <div className="flex flex-col items-center gap-4 py-16">
-              <Loader2 className="h-7 w-7 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">Initialisation de la vérification faciale…</p>
-            </div>
-          )}
+          <AnimatePresence mode="wait">
+            {/* Loading */}
+            {state === "loading" && (
+              <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-4 py-16">
+                <Loader2 className="h-7 w-7 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Initialisation…</p>
+              </motion.div>
+            )}
 
-          {state === "consent" && <ConsentNotice onAccept={handleConsent} />}
+            {/* Consent (first time, 0 profiles) */}
+            {state === "consent" && (
+              <motion.div key="consent" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <ConsentNotice onAccept={handleConsent} />
+              </motion.div>
+            )}
 
-          {state === "no_profiles" && (
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center gap-6 py-8">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-                <UserPlus className="h-7 w-7 text-primary" />
-              </div>
-              <div className="text-center">
-                <p className="text-base font-medium text-foreground">Aucun profil enregistré</p>
-                <p className="mt-1 text-sm text-muted-foreground">Créez votre premier profil pour déverrouiller l'espace.</p>
-              </div>
-              <button
-                onClick={() => setShowEnrollment(true)}
-                className="rounded-lg bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                Créer un profil visage
-              </button>
-            </motion.div>
-          )}
+            {/* Scanning */}
+            {(state === "scanning" || state === "success") && (
+              <motion.div key="scanning" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-6">
+                <FaceScanner active status={scannerStatus} onFaceDetected={handleFaceDetected} onError={handleScanError} />
 
-          {(state === "scanning" || state === "success") && (
-            <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center gap-6">
-              <FaceScanner active status={scannerStatus} onFaceDetected={handleFaceDetected} onError={handleScanError} />
+                <div className="min-h-[42px] text-center">
+                  <AnimatePresence mode="wait">
+                    {scannerStatus === "scanning" && (
+                      <motion.p key="scan" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                        <ScanFace className="h-4 w-4 text-primary" />
+                        Placez votre visage dans le cadre
+                      </motion.p>
+                    )}
+                    {scannerStatus === "detected" && (
+                      <motion.p key="detect" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="text-sm text-primary">
+                        Comparaison en cours…
+                      </motion.p>
+                    )}
+                    {scannerStatus === "success" && (
+                      <motion.p key="success" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="text-sm font-medium text-primary">
+                        Identité reconnue — {matchedName}
+                      </motion.p>
+                    )}
+                    {scannerStatus === "error" && errorMsg && (
+                      <motion.p key="error" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-2 text-sm text-destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        {errorMsg}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+                </div>
 
-              <div className="min-h-[42px] text-center">
-                <AnimatePresence mode="wait">
-                  {scannerStatus === "scanning" && (
-                    <motion.p key="scan" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                      <ScanFace className="h-4 w-4 text-primary" />
-                      Placez votre visage dans le cadre
-                    </motion.p>
-                  )}
-                  {scannerStatus === "detected" && (
-                    <motion.p key="detect" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="text-sm text-primary">
-                      Comparaison en cours…
-                    </motion.p>
-                  )}
-                  {scannerStatus === "success" && (
-                    <motion.p key="success" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="text-sm font-medium text-primary">
-                      Identité reconnue — {matchedName}
-                    </motion.p>
-                  )}
-                  {scannerStatus === "error" && errorMsg && (
-                    <motion.p key="error" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-2 text-sm text-destructive">
-                      <AlertTriangle className="h-4 w-4" />
-                      {errorMsg}
-                    </motion.p>
-                  )}
-                </AnimatePresence>
-              </div>
+                {/* NO "add profile" button here — only admins via settings can add profiles */}
+              </motion.div>
+            )}
 
-              {state === "scanning" && (
-                <button onClick={() => setShowEnrollment(true)} className="text-xs text-muted-foreground transition-colors hover:text-foreground">
-                  Enregistrer un autre profil
+            {/* Error */}
+            {state === "error" && (
+              <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-4 py-10">
+                <AlertTriangle className="h-8 w-8 text-destructive" />
+                <p className="max-w-xs text-center text-sm text-muted-foreground">{errorMsg}</p>
+                <button onClick={() => void init()} className="rounded-lg border bg-background px-4 py-2 text-sm text-foreground transition-colors hover:bg-secondary">
+                  Réessayer
                 </button>
-              )}
-            </motion.div>
-          )}
-
-          {state === "error" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-4 py-10">
-              <AlertTriangle className="h-8 w-8 text-destructive" />
-              <p className="max-w-xs text-center text-sm text-muted-foreground">{errorMsg}</p>
-              <button onClick={() => void init()} className="rounded-lg border bg-background px-4 py-2 text-sm text-foreground transition-colors hover:bg-secondary">
-                Réessayer
-              </button>
-            </motion.div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </motion.div>
