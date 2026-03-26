@@ -5,7 +5,7 @@ import {
   loadModels,
   compareFaces,
   checkStability,
-  getLocalProfiles,
+  getProfiles,
   type FaceDetectionResult,
   type FaceProfile,
 } from "@/lib/face-recognition";
@@ -37,19 +37,17 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
 
     try {
       await loadModels();
-      const existingProfiles = getLocalProfiles();
+      const existingProfiles = await getProfiles();
       setProfiles(existingProfiles);
 
       if (existingProfiles.length === 0) {
-        // No profiles at all → show consent then enrollment
         setState("consent");
       } else {
-        // Profiles exist → go straight to scanning
         setState("scanning");
         setScannerStatus("scanning");
       }
     } catch (error) {
-      console.error("[FaceAuth] Model loading failed:", error);
+      console.error("[FaceAuth] Init failed:", error);
       setErrorMsg("Impossible de charger la reconnaissance faciale.");
       setState("error");
     }
@@ -60,13 +58,11 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
   }, [init]);
 
   const handleConsent = () => {
-    // User accepted → go to enrollment
     setState("enrolling");
   };
 
-  const handleEnrollmentComplete = () => {
-    // After enrollment, reload profiles and start scanning
-    const newProfiles = getLocalProfiles();
+  const handleEnrollmentComplete = async () => {
+    const newProfiles = await getProfiles();
     setProfiles(newProfiles);
     setState("scanning");
     setScannerStatus("scanning");
@@ -129,7 +125,6 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
     }
   }, []);
 
-  // Enrollment flow (first time only)
   if (state === "enrolling") {
     return (
       <FaceEnrollment
@@ -151,7 +146,6 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
       <div className="absolute inset-0 bg-[linear-gradient(135deg,hsl(var(--background)),hsl(var(--secondary)))] opacity-95" />
 
       <div className="relative z-10 flex w-full max-w-5xl items-center justify-center gap-16 px-8">
-        {/* Left branding panel */}
         <div className="hidden lg:block max-w-sm">
           <motion.h1
             initial={{ opacity: 0, y: 14 }}
@@ -170,15 +164,13 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
             </div>
             <div className="rounded-lg border bg-card px-4 py-3 text-sm text-card-foreground shadow-sm flex items-center gap-2">
               <ScanFace className="h-4 w-4 text-primary" />
-              Descripteurs stockés localement
+              Profils stockés en base de données
             </div>
           </div>
         </div>
 
-        {/* Right card */}
         <div className="w-full max-w-md rounded-2xl border bg-card/95 p-8 shadow-sm backdrop-blur">
           <AnimatePresence mode="wait">
-            {/* Loading */}
             {state === "loading" && (
               <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-4 py-16">
                 <Loader2 className="h-7 w-7 animate-spin text-primary" />
@@ -186,14 +178,12 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
               </motion.div>
             )}
 
-            {/* Consent (first time, 0 profiles) */}
             {state === "consent" && (
               <motion.div key="consent" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <ConsentNotice onAccept={handleConsent} />
               </motion.div>
             )}
 
-            {/* Scanning */}
             {(state === "scanning" || state === "success") && (
               <motion.div key="scanning" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-6">
                 <FaceScanner active status={scannerStatus} onFaceDetected={handleFaceDetected} onError={handleScanError} />
@@ -224,12 +214,9 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
                     )}
                   </AnimatePresence>
                 </div>
-
-                {/* NO "add profile" button here — only admins via settings can add profiles */}
               </motion.div>
             )}
 
-            {/* Error */}
             {state === "error" && (
               <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-4 py-10">
                 <AlertTriangle className="h-8 w-8 text-destructive" />

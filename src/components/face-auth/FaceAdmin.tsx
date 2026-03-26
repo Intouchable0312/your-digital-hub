@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import { deleteLocalProfile, renameLocalProfile, type FaceProfile } from "@/lib/face-recognition";
+import { deleteProfile, renameProfile, type FaceProfile } from "@/lib/face-recognition";
 
 interface FaceAdminProps {
   profiles: FaceProfile[];
@@ -18,15 +18,15 @@ const FaceAdmin = ({ profiles, onRefresh, onReenroll }: FaceAdminProps) => {
   const [editName, setEditName] = useState("");
   const [threshold, setThreshold] = useState(() => parseFloat(localStorage.getItem("face_threshold") || "0.52"));
 
-  const handleDelete = (id: string) => {
-    deleteLocalProfile(id);
+  const handleDelete = async (id: string) => {
+    await deleteProfile(id);
     toast.success("Profil supprimé");
     onRefresh();
   };
 
-  const handleRename = (id: string) => {
+  const handleRename = async (id: string) => {
     if (!editName.trim()) return;
-    renameLocalProfile(id, editName.trim());
+    await renameProfile(id, editName.trim());
     toast.success("Profil renommé");
     setEditingId(null);
     onRefresh();
@@ -110,7 +110,7 @@ const FaceAdmin = ({ profiles, onRefresh, onReenroll }: FaceAdminProps) => {
       </div>
 
       <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
-        Les profils sont stockés localement dans ce navigateur sous forme de descripteurs numériques uniquement. Pour un usage production, une validation juridique et une politique de conservation documentée restent nécessaires.
+        Les profils sont stockés en base de données sous forme de descripteurs numériques uniquement, accessibles depuis n'importe quel appareil. Aucune image brute n'est conservée.
       </p>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { icons, Plus, Trash2, ExternalLink, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import IconPicker from "./IconPicker";
 import FaceAdmin from "./face-auth/FaceAdmin";
 import FaceEnrollment from "./face-auth/FaceEnrollment";
-import { getLocalProfiles, type FaceProfile } from "@/lib/face-recognition";
+import { getProfiles, type FaceProfile } from "@/lib/face-recognition";
 import type { Database } from "@/integrations/supabase/types";
 
 type Tab = Database["public"]["Tables"]["tabs"]["Row"];
@@ -25,7 +25,9 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
   const [url, setUrl] = useState("");
   const [adminUrl, setAdminUrl] = useState("");
   const [showEnrollment, setShowEnrollment] = useState(false);
-  const [faceProfiles, setFaceProfiles] = useState<FaceProfile[]>(() => getLocalProfiles());
+  const [faceProfiles, setFaceProfiles] = useState<FaceProfile[]>([]);
+
+  useEffect(() => { getProfiles().then(setFaceProfiles); }, []);
 
   const normalizeUrl = (value: string) => {
     const trimmed = value.trim();
@@ -33,7 +35,7 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
     return trimmed.startsWith("http") ? trimmed : `https://${trimmed}`;
   };
 
-  const refreshProfiles = () => setFaceProfiles(getLocalProfiles());
+  const refreshProfiles = () => { getProfiles().then(setFaceProfiles); };
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
