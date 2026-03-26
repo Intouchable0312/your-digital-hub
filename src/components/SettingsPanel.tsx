@@ -27,6 +27,8 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
   const [showEnrollment, setShowEnrollment] = useState(false);
   const [faceProfiles, setFaceProfiles] = useState<FaceProfile[]>([]);
 
+  useEffect(() => { getProfiles().then(setFaceProfiles); }, []);
+
   const normalizeUrl = (value: string) => {
     const trimmed = value.trim();
     if (!trimmed) return "";
