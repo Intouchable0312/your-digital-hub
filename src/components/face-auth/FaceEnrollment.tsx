@@ -5,10 +5,9 @@ import { Input } from "@/components/ui/input";
 import FaceScanner from "./FaceScanner";
 import {
   ENROLLMENT_STEPS,
-  createProfile,
+  createAndSaveProfile,
   getPoseMetrics,
-  hasSimilarProfile,
-  upsertLocalProfile,
+  hasSimilarProfileInDB,
   type FaceDetectionResult,
 } from "@/lib/face-recognition";
 import { toast } from "sonner";
@@ -30,7 +29,6 @@ const FaceEnrollment = ({ onComplete, onCancel }: FaceEnrollmentProps) => {
   const [statusMessage, setStatusMessage] = useState("Suivez précisément la consigne affichée.");
   const [displayFrames, setDisplayFrames] = useState(0);
 
-  // Use refs for values accessed in rapid-fire callbacks to avoid stale closures
   const validationFramesRef = useRef(0);
   const capturedDescriptorsRef = useRef<number[][]>([]);
   const currentStepIndexRef = useRef(0);
@@ -53,22 +51,27 @@ const FaceEnrollment = ({ onComplete, onCancel }: FaceEnrollmentProps) => {
   };
 
   const saveProfile = useCallback(
-    (descriptors: number[][]) => {
+    async (descriptors: number[][]) => {
       if (savingRef.current) return;
       savingRef.current = true;
       setState("saving");
 
-      const profile = createProfile(name.trim(), descriptors);
-      upsertLocalProfile(profile);
-      setState("done");
-      toast.success("Profil enregistré avec succès");
-      setTimeout(onComplete, 900);
+      const profile = await createAndSaveProfile(name.trim(), descriptors);
+      if (profile) {
+        setState("done");
+        toast.success("Profil enregistré avec succès");
+        setTimeout(onComplete, 900);
+      } else {
+        toast.error("Erreur lors de l'enregistrement du profil");
+        savingRef.current = false;
+        setState("capture");
+      }
     },
     [name, onComplete],
   );
 
   const validateCurrentStep = useCallback(
-    (result: FaceDetectionResult) => {
+    async (result: FaceDetectionResult) => {
       if (state !== "capture" || savingRef.current || stepLockedRef.current) return;
 
       const step = ENROLLMENT_STEPS[currentStepIndexRef.current];
@@ -80,7 +83,8 @@ const FaceEnrollment = ({ onComplete, onCancel }: FaceEnrollmentProps) => {
       // Duplicate check (once per enrollment)
       if (!duplicateCheckDoneRef.current) {
         duplicateCheckDoneRef.current = true;
-        if (hasSimilarProfile(result.descriptor)) {
+        const isDuplicate = await hasSimilarProfileInDB(result.descriptor);
+        if (isDuplicate) {
           setScannerStatus("error");
           setStatusMessage("Ce visage ressemble déjà fortement à un profil existant.");
           toast.error("Profil déjà enregistré ou très similaire");
@@ -97,7 +101,6 @@ const FaceEnrollment = ({ onComplete, onCancel }: FaceEnrollmentProps) => {
       const valid = step.validate(metrics);
 
       if (!valid) {
-        // Don't hard-reset — just decrement by 1 so small glitches don't kill progress
         const current = validationFramesRef.current;
         if (current > 0) {
           validationFramesRef.current = current - 1;
@@ -108,7 +111,6 @@ const FaceEnrollment = ({ onComplete, onCancel }: FaceEnrollmentProps) => {
         return;
       }
 
-      // Valid frame — increment
       validationFramesRef.current += 1;
       const frames = validationFramesRef.current;
       setDisplayFrames(frames);
@@ -117,7 +119,6 @@ const FaceEnrollment = ({ onComplete, onCancel }: FaceEnrollmentProps) => {
 
       if (frames < FRAMES_REQUIRED) return;
 
-      // Step validated — lock, capture, move on
       stepLockedRef.current = true;
       capturedDescriptorsRef.current = [...capturedDescriptorsRef.current, result.descriptor];
       setScannerStatus("success");
@@ -147,18 +148,15 @@ const FaceEnrollment = ({ onComplete, onCancel }: FaceEnrollmentProps) => {
     (error: string) => {
       if (error === "multiple_faces") {
         setScannerStatus("error");
-        // Don't fully reset — just pause
         setStatusMessage("Un seul visage doit être visible pendant l'enrôlement.");
         return;
       }
-
       if (error === "no_face") {
         setScannerStatus("scanning");
         const step = ENROLLMENT_STEPS[currentStepIndexRef.current];
         setStatusMessage(step?.description || "Cadrez votre visage pour continuer.");
         return;
       }
-
       if (error === "camera_denied") {
         setScannerStatus("error");
         setStatusMessage("Accès caméra refusé. Autorisez la caméra puis recommencez.");
@@ -171,11 +169,10 @@ const FaceEnrollment = ({ onComplete, onCancel }: FaceEnrollmentProps) => {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-background">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.14),transparent_35%),radial-gradient(circle_at_bottom_right,hsl(var(--primary)/0.08),transparent_30%)]" />
       <div className="relative z-10 flex w-full max-w-6xl items-center gap-12 px-8">
-        {/* Left info panel */}
         <div className="hidden lg:block max-w-md">
           <h2 className="text-4xl font-display font-extrabold tracking-tight text-foreground">Création du profil</h2>
           <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-            Suivez chaque consigne et attendez la validation réelle avant de passer à l'étape suivante. Chaque capture doit être stable et conforme.
+            Suivez chaque consigne et attendez la validation réelle avant de passer à l'étape suivante.
           </p>
           <div className="mt-8 rounded-xl border bg-card p-5 shadow-sm">
             <div className="mb-3 flex items-center justify-between text-sm">
@@ -199,14 +196,12 @@ const FaceEnrollment = ({ onComplete, onCancel }: FaceEnrollmentProps) => {
           </div>
         </div>
 
-        {/* Right card */}
         <div className="relative w-full max-w-md rounded-2xl border bg-card p-8 shadow-sm">
           <button onClick={onCancel} className="absolute left-6 top-6 text-muted-foreground transition-colors hover:text-foreground">
             <ArrowLeft className="h-5 w-5" />
           </button>
 
           <AnimatePresence mode="wait">
-            {/* Step: Name */}
             {state === "name" && (
               <motion.form key="name" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onSubmit={handleNameSubmit} className="flex flex-col items-center gap-6 pt-8">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
@@ -226,7 +221,6 @@ const FaceEnrollment = ({ onComplete, onCancel }: FaceEnrollmentProps) => {
               </motion.form>
             )}
 
-            {/* Step: Capture */}
             {state === "capture" && currentStep && (
               <motion.div key="capture" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-5 pt-6">
                 <div className="text-center">
@@ -253,15 +247,13 @@ const FaceEnrollment = ({ onComplete, onCancel }: FaceEnrollmentProps) => {
               </motion.div>
             )}
 
-            {/* Step: Saving */}
             {state === "saving" && (
               <motion.div key="saving" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-4 py-16">
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
-                <p className="text-sm text-muted-foreground">Enregistrement du profil…</p>
+                <p className="text-sm text-muted-foreground">Enregistrement du profil en base de données…</p>
               </motion.div>
             )}
 
-            {/* Step: Done */}
             {state === "done" && (
               <motion.div key="done" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center gap-4 py-16">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">

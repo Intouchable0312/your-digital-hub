@@ -5,16 +5,14 @@
  * sensibles au sens du RGPD (art. 9). Une validation juridique humaine est nécessaire
  * avant tout déploiement en production.
  *
- * Cette version minimise les données :
- * - aucune image brute n'est stockée ;
- * - seuls des descripteurs numériques 128D sont conservés ;
- * - en mode local, ils restent dans le navigateur via localStorage.
+ * Seuls des descripteurs numériques 128D sont conservés en base de données.
+ * Aucune image brute n'est stockée.
  */
 
 import * as faceapi from "@vladmandic/face-api";
+import { supabase } from "@/integrations/supabase/client";
 
 const MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1/model/";
-const FACE_PROFILES_KEY = "vizion_face_profiles";
 
 let modelsLoaded = false;
 let modelsLoading: Promise<void> | null = null;
@@ -135,7 +133,6 @@ export function getPoseMetrics(result: FaceDetectionResult, video: HTMLVideoElem
   const leftEye = points[36];
   const rightEye = points[45];
   const nose = points[30];
-  const mouth = points[62];
   const eyeMidX = (leftEye.x + rightEye.x) / 2;
   const eyeMidY = (leftEye.y + rightEye.y) / 2;
   const eyeDistance = Math.max(1, Math.abs(rightEye.x - leftEye.x));
@@ -154,14 +151,7 @@ export function getPoseMetrics(result: FaceDetectionResult, video: HTMLVideoElem
     centerY > (video.videoHeight || 480) * 0.25 &&
     centerY < (video.videoHeight || 480) * 0.75;
 
-  void mouth;
-
-  return {
-    yaw,
-    pitch,
-    faceArea: normalizedArea,
-    centered,
-  };
+  return { yaw, pitch, faceArea: normalizedArea, centered };
 }
 
 export interface EnrollmentStep {
@@ -204,51 +194,69 @@ export const ENROLLMENT_STEPS: EnrollmentStep[] = [
   },
 ];
 
-export function createProfile(name: string, descriptors: number[][]): FaceProfile {
-  const now = new Date().toISOString();
+// ─── Supabase-backed profile CRUD ───
+
+export async function getProfiles(): Promise<FaceProfile[]> {
+  const { data, error } = await supabase
+    .from("face_profiles")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("[FaceRecognition] Failed to fetch profiles:", error);
+    return [];
+  }
+
+  return (data || []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    descriptors: (row.descriptors as number[][]) || [],
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }));
+}
+
+export async function createAndSaveProfile(name: string, descriptors: number[][]): Promise<FaceProfile | null> {
+  const { data, error } = await supabase
+    .from("face_profiles")
+    .insert({ name, descriptors: descriptors as any })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("[FaceRecognition] Failed to save profile:", error);
+    return null;
+  }
+
   return {
-    id: crypto.randomUUID(),
-    name,
-    descriptors,
-    created_at: now,
-    updated_at: now,
+    id: data.id,
+    name: data.name,
+    descriptors: (data.descriptors as number[][]) || [],
+    created_at: data.created_at,
+    updated_at: data.updated_at,
   };
 }
 
-export function getLocalProfiles(): FaceProfile[] {
-  try {
-    const raw = localStorage.getItem(FACE_PROFILES_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+export async function renameProfile(id: string, name: string): Promise<void> {
+  const { error } = await supabase
+    .from("face_profiles")
+    .update({ name })
+    .eq("id", id);
+
+  if (error) console.error("[FaceRecognition] Failed to rename profile:", error);
 }
 
-export function saveLocalProfiles(profiles: FaceProfile[]) {
-  localStorage.setItem(FACE_PROFILES_KEY, JSON.stringify(profiles));
+export async function deleteProfile(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("face_profiles")
+    .delete()
+    .eq("id", id);
+
+  if (error) console.error("[FaceRecognition] Failed to delete profile:", error);
 }
 
-export function upsertLocalProfile(profile: FaceProfile) {
-  const profiles = getLocalProfiles();
-  const next = profiles.filter((p) => p.id !== profile.id);
-  next.push(profile);
-  saveLocalProfiles(next);
-}
-
-export function renameLocalProfile(id: string, name: string) {
-  const next = getLocalProfiles().map((profile) =>
-    profile.id === id ? { ...profile, name, updated_at: new Date().toISOString() } : profile,
-  );
-  saveLocalProfiles(next);
-}
-
-export function deleteLocalProfile(id: string) {
-  saveLocalProfiles(getLocalProfiles().filter((profile) => profile.id !== id));
-}
-
-export function hasSimilarProfile(descriptor: number[], threshold = 0.42): boolean {
-  const profiles = getLocalProfiles();
+export async function hasSimilarProfileInDB(descriptor: number[], threshold = 0.42): Promise<boolean> {
+  const profiles = await getProfiles();
   return profiles.some((profile) => compareFaces(descriptor, profile.descriptors, threshold).match);
 }
 
