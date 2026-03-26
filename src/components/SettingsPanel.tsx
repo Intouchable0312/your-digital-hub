@@ -25,7 +25,7 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
   const [url, setUrl] = useState("");
   const [adminUrl, setAdminUrl] = useState("");
   const [showEnrollment, setShowEnrollment] = useState(false);
-  const [faceProfiles, setFaceProfiles] = useState<FaceProfile[]>(() => getLocalProfiles());
+  const [faceProfiles, setFaceProfiles] = useState<FaceProfile[]>([]);
 
   const normalizeUrl = (value: string) => {
     const trimmed = value.trim();
@@ -33,7 +33,7 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
     return trimmed.startsWith("http") ? trimmed : `https://${trimmed}`;
   };
 
-  const refreshProfiles = () => setFaceProfiles(getLocalProfiles());
+  const refreshProfiles = () => { getProfiles().then(setFaceProfiles); };
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
