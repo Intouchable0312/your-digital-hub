@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ScanFace, AlertTriangle, Loader2, ShieldCheck } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import {
   loadModels,
   compareFaces,
@@ -110,7 +110,7 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
 
   const handleScanError = useCallback((error: string) => {
     if (error === "multiple_faces") {
-      setErrorMsg("Plusieurs visages détectés — un seul autorisé.");
+      setErrorMsg("Plusieurs visages détectés");
       setScannerStatus("error");
       setTimeout(() => {
         setScannerStatus("scanning");
@@ -139,96 +139,187 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.35 }}
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-background"
+      transition={{ duration: 0.5 }}
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-background"
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.16),transparent_35%),radial-gradient(circle_at_bottom_right,hsl(var(--primary)/0.12),transparent_30%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,hsl(var(--background)),hsl(var(--secondary)))] opacity-95" />
-
-      <div className="relative z-10 flex w-full max-w-5xl items-center justify-center gap-16 px-8">
-        <div className="hidden lg:block max-w-sm">
-          <motion.h1
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-5xl font-display font-extrabold tracking-tight text-foreground"
-          >
-            Vizion
-          </motion.h1>
-          <p className="mt-5 text-base leading-relaxed text-muted-foreground">
-            Authentification par reconnaissance faciale. Seuls les visages autorisés peuvent accéder à cet espace.
-          </p>
-          <div className="mt-8 grid gap-3">
-            <div className="rounded-lg border bg-card px-4 py-3 text-sm text-card-foreground shadow-sm flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-primary" />
-              Vérification en temps réel
-            </div>
-            <div className="rounded-lg border bg-card px-4 py-3 text-sm text-card-foreground shadow-sm flex items-center gap-2">
-              <ScanFace className="h-4 w-4 text-primary" />
-              Profils stockés en base de données
-            </div>
-          </div>
-        </div>
-
-        <div className="w-full max-w-md rounded-2xl border bg-card/95 p-8 shadow-sm backdrop-blur">
-          <AnimatePresence mode="wait">
-            {state === "loading" && (
-              <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-4 py-16">
-                <Loader2 className="h-7 w-7 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Initialisation…</p>
-              </motion.div>
-            )}
-
-            {state === "consent" && (
-              <motion.div key="consent" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <ConsentNotice onAccept={handleConsent} />
-              </motion.div>
-            )}
-
-            {(state === "scanning" || state === "success") && (
-              <motion.div key="scanning" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-6">
-                <FaceScanner active status={scannerStatus} onFaceDetected={handleFaceDetected} onError={handleScanError} />
-
-                <div className="min-h-[42px] text-center">
-                  <AnimatePresence mode="wait">
-                    {scannerStatus === "scanning" && (
-                      <motion.p key="scan" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                        <ScanFace className="h-4 w-4 text-primary" />
-                        Placez votre visage dans le cadre
-                      </motion.p>
-                    )}
-                    {scannerStatus === "detected" && (
-                      <motion.p key="detect" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="text-sm text-primary">
-                        Comparaison en cours…
-                      </motion.p>
-                    )}
-                    {scannerStatus === "success" && (
-                      <motion.p key="success" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="text-sm font-medium text-primary">
-                        Identité reconnue — {matchedName}
-                      </motion.p>
-                    )}
-                    {scannerStatus === "error" && errorMsg && (
-                      <motion.p key="error" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-2 text-sm text-destructive">
-                        <AlertTriangle className="h-4 w-4" />
-                        {errorMsg}
-                      </motion.p>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </motion.div>
-            )}
-
-            {state === "error" && (
-              <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-4 py-10">
-                <AlertTriangle className="h-8 w-8 text-destructive" />
-                <p className="max-w-xs text-center text-sm text-muted-foreground">{errorMsg}</p>
-                <button onClick={() => void init()} className="rounded-lg border bg-background px-4 py-2 text-sm text-foreground transition-colors hover:bg-secondary">
-                  Réessayer
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+      {/* Subtle radial glow */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(var(--primary)/0.06),transparent_70%)]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle,hsl(var(--primary)/0.04),transparent_60%)] blur-3xl" />
       </div>
+
+      <AnimatePresence mode="wait">
+        {state === "loading" && (
+          <motion.div
+            key="loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="relative z-10 flex flex-col items-center gap-8"
+          >
+            {/* Face ID icon animation */}
+            <motion.div
+              initial={{ scale: 0.8 }}
+              animate={{ scale: [0.8, 1, 0.8] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              className="w-16 h-16 rounded-2xl border-2 border-primary/20 flex items-center justify-center"
+            >
+              <svg viewBox="0 0 24 24" className="w-8 h-8 text-primary" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <path d="M9 12h.01M15 12h.01M10 16s1 1 2 1 2-1 2-1" />
+                <rect x="3" y="3" width="18" height="18" rx="5" className="opacity-0" />
+                <path d="M7 3H5a2 2 0 00-2 2v2M17 3h2a2 2 0 012 2v2M7 21H5a2 2 0 01-2-2v-2M17 21h2a2 2 0 002-2v-2" />
+              </svg>
+            </motion.div>
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-sm font-medium text-foreground">Préparation du scanner</p>
+              <div className="flex gap-1.5">
+                {[0, 1, 2].map((i) => (
+                  <motion.div
+                    key={i}
+                    className="w-1.5 h-1.5 rounded-full bg-primary"
+                    animate={{ opacity: [0.2, 1, 0.2] }}
+                    transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                  />
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {state === "consent" && (
+          <motion.div
+            key="consent"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="relative z-10 w-full max-w-sm px-6"
+          >
+            <ConsentNotice onAccept={handleConsent} />
+          </motion.div>
+        )}
+
+        {(state === "scanning" || state === "success") && (
+          <motion.div
+            key="scanning"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            transition={{ duration: 0.4 }}
+            className="relative z-10 flex flex-col items-center"
+          >
+            {/* Title above scanner */}
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="mb-8 text-center"
+            >
+              <h1 className="text-lg font-display font-bold text-foreground mb-1">
+                {state === "success" ? `Bonjour, ${matchedName}` : "Reconnaissance faciale"}
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                {state === "success" ? "Identité confirmée" : "Positionnez votre visage dans le cadre"}
+              </p>
+            </motion.div>
+
+            {/* Scanner */}
+            <FaceScanner
+              active
+              status={scannerStatus}
+              onFaceDetected={handleFaceDetected}
+              onError={handleScanError}
+            />
+
+            {/* Status text below scanner */}
+            <div className="mt-8 min-h-[32px] text-center">
+              <AnimatePresence mode="wait">
+                {scannerStatus === "scanning" && (
+                  <motion.div
+                    key="scan"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center gap-2"
+                  >
+                    <motion.div
+                      className="w-2 h-2 rounded-full bg-primary"
+                      animate={{ scale: [1, 1.4, 1], opacity: [0.5, 1, 0.5] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    />
+                    <span className="text-xs text-muted-foreground">Recherche de visage…</span>
+                  </motion.div>
+                )}
+                {scannerStatus === "detected" && (
+                  <motion.p
+                    key="detect"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="text-xs text-primary font-medium"
+                  >
+                    Analyse en cours…
+                  </motion.p>
+                )}
+                {scannerStatus === "success" && (
+                  <motion.div
+                    key="success"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-2"
+                  >
+                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <span className="text-xs font-medium text-foreground">Accès autorisé</span>
+                  </motion.div>
+                )}
+                {scannerStatus === "error" && errorMsg && (
+                  <motion.p
+                    key="error"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="text-xs text-destructive font-medium"
+                  >
+                    {errorMsg}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Branding */}
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6 }}
+              className="mt-12 text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 font-medium"
+            >
+              Vizion · Authentification sécurisée
+            </motion.p>
+          </motion.div>
+        )}
+
+        {state === "error" && (
+          <motion.div
+            key="error"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="relative z-10 flex flex-col items-center gap-5 px-6"
+          >
+            <div className="w-14 h-14 rounded-2xl bg-destructive/10 flex items-center justify-center">
+              <AlertTriangle className="h-7 w-7 text-destructive" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-medium text-foreground mb-1">Erreur</p>
+              <p className="text-xs text-muted-foreground max-w-xs">{errorMsg}</p>
+            </div>
+            <button
+              onClick={() => void init()}
+              className="mt-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Réessayer
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
