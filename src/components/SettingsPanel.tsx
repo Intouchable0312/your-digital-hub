@@ -62,38 +62,38 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-auto p-8">
+    <div className="flex h-full flex-col overflow-auto p-4 sm:p-6 md:p-8">
       <div className="mx-auto w-full max-w-2xl">
-        <h1 className="mb-1 text-2xl font-display font-bold text-foreground">Paramètres</h1>
-        <p className="mb-8 text-sm text-muted-foreground">Gérez vos onglets, vos sites web et vos profils de vérification.</p>
+        <h1 className="mb-1 text-xl sm:text-2xl font-display font-bold text-foreground">Paramètres</h1>
+        <p className="mb-6 sm:mb-8 text-xs sm:text-sm text-muted-foreground">Gérez vos onglets, vos sites web et vos profils de vérification.</p>
 
-        <Button onClick={() => setShowForm(!showForm)} className="mb-6 gap-2" size="lg">
+        <Button onClick={() => setShowForm(!showForm)} className="mb-4 sm:mb-6 gap-2" size="lg">
           <Plus size={18} />
           Ajouter un onglet
         </Button>
 
         <AnimatePresence>
           {showForm && (
-            <motion.form initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} onSubmit={handleSubmit} className="mb-8 overflow-hidden rounded-lg border bg-card p-6">
-              <div className="flex flex-col gap-5">
+            <motion.form initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} onSubmit={handleSubmit} className="mb-6 sm:mb-8 overflow-hidden rounded-lg border bg-card p-4 sm:p-6">
+              <div className="flex flex-col gap-4 sm:gap-5">
                 <div>
-                  <Label className="mb-2 block text-sm text-muted-foreground">Nom de l'onglet</Label>
+                  <Label className="mb-2 block text-xs sm:text-sm text-muted-foreground">Nom de l'onglet</Label>
                   <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Mon site..." className="bg-secondary border-border" required />
                 </div>
                 <div>
-                  <Label className="mb-2 block text-sm text-muted-foreground">URL du site</Label>
+                  <Label className="mb-2 block text-xs sm:text-sm text-muted-foreground">URL du site</Label>
                   <Input value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://example.com" className="bg-secondary border-border" required />
                 </div>
                 <div>
-                  <Label className="mb-2 flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <Label className="mb-2 flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
                     <Shield size={14} className="text-primary" />
                     URL Admin (optionnel)
                   </Label>
                   <Input value={adminUrl} onChange={(event) => setAdminUrl(event.target.value)} placeholder="https://example.com/admin" className="bg-secondary border-border" />
-                  <p className="mt-1.5 text-xs text-muted-foreground">Lien d'administration accessible depuis la sidebar</p>
+                  <p className="mt-1.5 text-[10px] sm:text-xs text-muted-foreground">Lien d'administration accessible depuis la sidebar</p>
                 </div>
                 <div>
-                  <Label className="mb-2 block text-sm text-muted-foreground">Icône</Label>
+                  <Label className="mb-2 block text-xs sm:text-sm text-muted-foreground">Icône</Label>
                   <IconPicker value={icon} onChange={setIcon} />
                 </div>
                 <div className="flex gap-3">
@@ -107,9 +107,9 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
 
         <div className="flex flex-col gap-2">
           {tabs.length === 0 && !showForm && (
-            <div className="py-16 text-center text-muted-foreground">
-              <p className="text-base">Aucun onglet pour le moment</p>
-              <p className="mt-1 text-sm">Cliquez sur « Ajouter un onglet » pour commencer</p>
+            <div className="py-12 sm:py-16 text-center text-muted-foreground">
+              <p className="text-sm sm:text-base">Aucun onglet pour le moment</p>
+              <p className="mt-1 text-xs sm:text-sm">Cliquez sur « Ajouter un onglet » pour commencer</p>
             </div>
           )}
 
@@ -117,24 +117,24 @@ const SettingsPanel = ({ tabs, onAdd, onDelete }: SettingsPanelProps) => {
             {tabs.map((tab) => {
               const Icon = icons[tab.icon as keyof typeof icons] || icons.Globe;
               return (
-                <motion.div key={tab.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -16 }} className="group flex items-center gap-4 rounded-lg border bg-card p-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary">
-                    <Icon size={18} className="text-primary" />
+                <motion.div key={tab.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -16 }} className="group flex items-center gap-3 sm:gap-4 rounded-lg border bg-card p-3 sm:p-4">
+                  <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-md bg-secondary">
+                    <Icon size={16} className="sm:w-[18px] sm:h-[18px] text-primary" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{tab.name}</p>
-                    <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
-                      <ExternalLink size={11} />
+                    <p className="truncate text-xs sm:text-sm font-medium">{tab.name}</p>
+                    <p className="flex items-center gap-1 truncate text-[10px] sm:text-xs text-muted-foreground">
+                      <ExternalLink size={10} className="sm:w-[11px] sm:h-[11px]" />
                       {tab.url}
                     </p>
                     {tab.admin_url && (
-                      <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-primary/70">
-                        <Shield size={11} />
+                      <p className="mt-0.5 flex items-center gap-1 truncate text-[10px] sm:text-xs text-primary/70">
+                        <Shield size={10} className="sm:w-[11px] sm:h-[11px]" />
                         {tab.admin_url}
                       </p>
                     )}
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => onDelete(tab.id)} className="opacity-0 transition-opacity group-hover:opacity-100 text-destructive hover:bg-destructive/10 hover:text-destructive">
+                  <Button variant="ghost" size="icon" onClick={() => onDelete(tab.id)} className="opacity-100 sm:opacity-0 transition-opacity sm:group-hover:opacity-100 text-destructive hover:bg-destructive/10 hover:text-destructive">
                     <Trash2 size={16} />
                   </Button>
                 </motion.div>

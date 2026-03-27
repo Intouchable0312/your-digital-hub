@@ -140,12 +140,12 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-background"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-background px-4"
     >
       {/* Subtle radial glow */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(var(--primary)/0.06),transparent_70%)]" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle,hsl(var(--primary)/0.04),transparent_60%)] blur-3xl" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[400px] sm:w-[600px] h-[400px] sm:h-[600px] bg-[radial-gradient(circle,hsl(var(--primary)/0.04),transparent_60%)] blur-3xl" />
       </div>
 
       <AnimatePresence mode="wait">
@@ -155,23 +155,22 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="relative z-10 flex flex-col items-center gap-8"
+            className="relative z-10 flex flex-col items-center gap-6 sm:gap-8"
           >
-            {/* Face ID icon animation */}
             <motion.div
               initial={{ scale: 0.8 }}
               animate={{ scale: [0.8, 1, 0.8] }}
               transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              className="w-16 h-16 rounded-2xl border-2 border-primary/20 flex items-center justify-center"
+              className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl border-2 border-primary/20 flex items-center justify-center"
             >
-              <svg viewBox="0 0 24 24" className="w-8 h-8 text-primary" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <svg viewBox="0 0 24 24" className="w-7 h-7 sm:w-8 sm:h-8 text-primary" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                 <path d="M9 12h.01M15 12h.01M10 16s1 1 2 1 2-1 2-1" />
                 <rect x="3" y="3" width="18" height="18" rx="5" className="opacity-0" />
                 <path d="M7 3H5a2 2 0 00-2 2v2M17 3h2a2 2 0 012 2v2M7 21H5a2 2 0 01-2-2v-2M17 21h2a2 2 0 002-2v-2" />
               </svg>
             </motion.div>
             <div className="flex flex-col items-center gap-2">
-              <p className="text-sm font-medium text-foreground">Préparation du scanner</p>
+              <p className="text-xs sm:text-sm font-medium text-foreground">Préparation du scanner</p>
               <div className="flex gap-1.5">
                 {[0, 1, 2].map((i) => (
                   <motion.div
@@ -192,7 +191,7 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="relative z-10 w-full max-w-sm px-6"
+            className="relative z-10 w-full max-w-sm px-2 sm:px-6"
           >
             <ConsentNotice onAccept={handleConsent} />
           </motion.div>
@@ -207,22 +206,20 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
             transition={{ duration: 0.4 }}
             className="relative z-10 flex flex-col items-center"
           >
-            {/* Title above scanner */}
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="mb-8 text-center"
+              className="mb-5 sm:mb-8 text-center px-4"
             >
-              <h1 className="text-lg font-display font-bold text-foreground mb-1">
+              <h1 className="text-base sm:text-lg font-display font-bold text-foreground mb-1">
                 {state === "success" ? `Bonjour, ${matchedName}` : "Reconnaissance faciale"}
               </h1>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[11px] sm:text-xs text-muted-foreground">
                 {state === "success" ? "Identité confirmée" : "Positionnez votre visage dans le cadre"}
               </p>
             </motion.div>
 
-            {/* Scanner */}
             <FaceScanner
               active
               status={scannerStatus}
@@ -230,8 +227,7 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
               onError={handleScanError}
             />
 
-            {/* Status text below scanner */}
-            <div className="mt-8 min-h-[32px] text-center">
+            <div className="mt-5 sm:mt-8 min-h-[32px] text-center">
               <AnimatePresence mode="wait">
                 {scannerStatus === "scanning" && (
                   <motion.div
@@ -246,7 +242,7 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
                       animate={{ scale: [1, 1.4, 1], opacity: [0.5, 1, 0.5] }}
                       transition={{ duration: 1.5, repeat: Infinity }}
                     />
-                    <span className="text-xs text-muted-foreground">Recherche de visage…</span>
+                    <span className="text-[11px] sm:text-xs text-muted-foreground">Recherche de visage…</span>
                   </motion.div>
                 )}
                 {scannerStatus === "detected" && (
@@ -255,7 +251,7 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="text-xs text-primary font-medium"
+                    className="text-[11px] sm:text-xs text-primary font-medium"
                   >
                     Analyse en cours…
                   </motion.p>
@@ -268,7 +264,7 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
                     className="flex items-center gap-2"
                   >
                     <div className="w-2 h-2 rounded-full bg-primary" />
-                    <span className="text-xs font-medium text-foreground">Accès autorisé</span>
+                    <span className="text-[11px] sm:text-xs font-medium text-foreground">Accès autorisé</span>
                   </motion.div>
                 )}
                 {scannerStatus === "error" && errorMsg && (
@@ -277,7 +273,7 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="text-xs text-destructive font-medium"
+                    className="text-[11px] sm:text-xs text-destructive font-medium"
                   >
                     {errorMsg}
                   </motion.p>
@@ -285,12 +281,11 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
               </AnimatePresence>
             </div>
 
-            {/* Branding */}
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.6 }}
-              className="mt-12 text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 font-medium"
+              className="mt-8 sm:mt-12 text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 font-medium"
             >
               Vizion · Authentification sécurisée
             </motion.p>
@@ -302,18 +297,18 @@ const FaceAuth = ({ onUnlock }: FaceAuthProps) => {
             key="error"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="relative z-10 flex flex-col items-center gap-5 px-6"
+            className="relative z-10 flex flex-col items-center gap-4 sm:gap-5 px-6"
           >
-            <div className="w-14 h-14 rounded-2xl bg-destructive/10 flex items-center justify-center">
-              <AlertTriangle className="h-7 w-7 text-destructive" />
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-destructive/10 flex items-center justify-center">
+              <AlertTriangle className="h-6 w-6 sm:h-7 sm:w-7 text-destructive" />
             </div>
             <div className="text-center">
-              <p className="text-sm font-medium text-foreground mb-1">Erreur</p>
-              <p className="text-xs text-muted-foreground max-w-xs">{errorMsg}</p>
+              <p className="text-xs sm:text-sm font-medium text-foreground mb-1">Erreur</p>
+              <p className="text-[11px] sm:text-xs text-muted-foreground max-w-xs">{errorMsg}</p>
             </div>
             <button
               onClick={() => void init()}
-              className="mt-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              className="mt-2 rounded-xl bg-primary px-6 py-2.5 text-xs sm:text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
               Réessayer
             </button>

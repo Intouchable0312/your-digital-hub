@@ -28,9 +28,9 @@ const AppSidebar = ({
   profileName,
 }: AppSidebarProps) => {
   return (
-    <div className="w-[240px] h-screen bg-sidebar flex flex-col border-r border-sidebar-border shrink-0">
+    <div className="w-[280px] md:w-[240px] h-screen bg-sidebar flex flex-col border-r border-sidebar-border shrink-0">
       {/* Brand + Profil */}
-      <div className="px-6 py-5 border-b border-sidebar-border">
+      <div className="px-5 py-5 border-b border-sidebar-border">
         <h1 className="text-xl font-display font-extrabold tracking-tight text-foreground">Vizion</h1>
         {profileName && (
           <div className="flex items-center gap-2 mt-2">
