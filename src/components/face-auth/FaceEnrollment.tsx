@@ -80,7 +80,6 @@ const FaceEnrollment = ({ onComplete, onCancel }: FaceEnrollmentProps) => {
       const video = document.querySelector("video");
       if (!(video instanceof HTMLVideoElement) || video.readyState < 2) return;
 
-      // Duplicate check (once per enrollment)
       if (!duplicateCheckDoneRef.current) {
         duplicateCheckDoneRef.current = true;
         const isDuplicate = await hasSimilarProfileInDB(result.descriptor);
@@ -166,10 +165,12 @@ const FaceEnrollment = ({ onComplete, onCancel }: FaceEnrollmentProps) => {
   );
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-background overflow-auto">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.14),transparent_35%),radial-gradient(circle_at_bottom_right,hsl(var(--primary)/0.08),transparent_30%)]" />
-      <div className="relative z-10 flex w-full max-w-6xl items-center gap-12 px-8">
-        <div className="hidden lg:block max-w-md">
+      
+      <div className="relative z-10 flex w-full max-w-6xl items-center gap-8 lg:gap-12 px-4 sm:px-6 md:px-8 py-6 flex-col lg:flex-row">
+        {/* Left panel — hidden on mobile, shown on lg */}
+        <div className="hidden lg:block max-w-md shrink-0">
           <h2 className="text-4xl font-display font-extrabold tracking-tight text-foreground">Création du profil</h2>
           <p className="mt-4 text-base leading-relaxed text-muted-foreground">
             Suivez chaque consigne et attendez la validation réelle avant de passer à l'étape suivante.
@@ -196,20 +197,21 @@ const FaceEnrollment = ({ onComplete, onCancel }: FaceEnrollmentProps) => {
           </div>
         </div>
 
-        <div className="relative w-full max-w-md rounded-2xl border bg-card p-8 shadow-sm">
-          <button onClick={onCancel} className="absolute left-6 top-6 text-muted-foreground transition-colors hover:text-foreground">
+        {/* Right panel — main card */}
+        <div className="relative w-full max-w-md rounded-2xl border bg-card p-5 sm:p-6 md:p-8 shadow-sm">
+          <button onClick={onCancel} className="absolute left-4 top-4 sm:left-6 sm:top-6 text-muted-foreground transition-colors hover:text-foreground">
             <ArrowLeft className="h-5 w-5" />
           </button>
 
           <AnimatePresence mode="wait">
             {state === "name" && (
-              <motion.form key="name" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onSubmit={handleNameSubmit} className="flex flex-col items-center gap-6 pt-8">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-                  <User className="h-7 w-7 text-primary" />
+              <motion.form key="name" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onSubmit={handleNameSubmit} className="flex flex-col items-center gap-5 sm:gap-6 pt-8">
+                <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-primary/10">
+                  <User className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
                 </div>
                 <div className="text-center">
-                  <h3 className="text-xl font-display font-bold text-foreground">Nom du profil</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">Donnez un nom clair au visage autorisé.</p>
+                  <h3 className="text-lg sm:text-xl font-display font-bold text-foreground">Nom du profil</h3>
+                  <p className="mt-1 text-xs sm:text-sm text-muted-foreground">Donnez un nom clair au visage autorisé.</p>
                 </div>
                 <div className="w-full">
                   <label className="mb-2 block text-xs text-muted-foreground">Nom affiché</label>
@@ -222,25 +224,36 @@ const FaceEnrollment = ({ onComplete, onCancel }: FaceEnrollmentProps) => {
             )}
 
             {state === "capture" && currentStep && (
-              <motion.div key="capture" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-5 pt-6">
+              <motion.div key="capture" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-4 sm:gap-5 pt-6">
                 <div className="text-center">
-                  <p className="text-xs font-medium uppercase tracking-[0.22em] text-primary">Étape {currentStepIndex + 1}/{ENROLLMENT_STEPS.length}</p>
-                  <h3 className="mt-2 text-xl font-display font-bold text-foreground">{currentStep.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{statusMessage}</p>
+                  <p className="text-[10px] sm:text-xs font-medium uppercase tracking-[0.22em] text-primary">Étape {currentStepIndex + 1}/{ENROLLMENT_STEPS.length}</p>
+                  <h3 className="mt-1.5 sm:mt-2 text-lg sm:text-xl font-display font-bold text-foreground">{currentStep.title}</h3>
+                  <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm leading-relaxed text-muted-foreground">{statusMessage}</p>
                 </div>
 
                 <FaceScanner active status={scannerStatus} onFaceDetected={validateCurrentStep} onError={handleScanError} />
 
-                <div className="w-full rounded-xl border bg-background p-4">
-                  <div className="flex items-center justify-between text-sm">
+                {/* Mobile progress (visible on < lg) */}
+                <div className="w-full lg:hidden">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                    <span>Étape {currentStepIndex + 1}/{ENROLLMENT_STEPS.length}</span>
+                    <span>{Math.round(progress)}%</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+                    <motion.div className="h-full bg-primary" animate={{ width: `${progress}%` }} />
+                  </div>
+                </div>
+
+                <div className="w-full rounded-xl border bg-background p-3 sm:p-4">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span className="font-medium text-foreground">Validation stricte</span>
                     <span className="text-muted-foreground">{Math.min(displayFrames, FRAMES_REQUIRED)}/{FRAMES_REQUIRED}</span>
                   </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary">
+                  <div className="mt-2 sm:mt-3 h-1.5 sm:h-2 overflow-hidden rounded-full bg-secondary">
                     <motion.div className="h-full bg-primary" animate={{ width: `${(Math.min(displayFrames, FRAMES_REQUIRED) / FRAMES_REQUIRED) * 100}%` }} transition={{ duration: 0.15 }} />
                   </div>
-                  <div className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
-                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                  <div className="mt-3 sm:mt-4 flex items-start gap-2 text-[10px] sm:text-xs text-muted-foreground">
+                    <AlertTriangle className="mt-0.5 h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 text-primary" />
                     La capture n'est validée que si la pose demandée est détectée {FRAMES_REQUIRED} fois consécutives.
                   </div>
                 </div>
@@ -248,19 +261,19 @@ const FaceEnrollment = ({ onComplete, onCancel }: FaceEnrollmentProps) => {
             )}
 
             {state === "saving" && (
-              <motion.div key="saving" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-4 py-16">
+              <motion.div key="saving" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-4 py-12 sm:py-16">
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
-                <p className="text-sm text-muted-foreground">Enregistrement du profil en base de données…</p>
+                <p className="text-xs sm:text-sm text-muted-foreground text-center">Enregistrement du profil en base de données…</p>
               </motion.div>
             )}
 
             {state === "done" && (
-              <motion.div key="done" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center gap-4 py-16">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                  <Check className="h-7 w-7 text-primary" />
+              <motion.div key="done" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center gap-4 py-12 sm:py-16">
+                <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-primary/10">
+                  <Check className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
                 </div>
-                <p className="text-base font-medium text-foreground">Profil « {name} » enregistré</p>
-                <p className="text-sm text-muted-foreground">Vous allez être redirigé automatiquement.</p>
+                <p className="text-sm sm:text-base font-medium text-foreground text-center">Profil « {name} » enregistré</p>
+                <p className="text-xs sm:text-sm text-muted-foreground text-center">Vous allez être redirigé automatiquement.</p>
               </motion.div>
             )}
           </AnimatePresence>

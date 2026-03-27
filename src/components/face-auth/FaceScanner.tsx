@@ -18,7 +18,6 @@ const FaceScanner = ({ active, status, onFaceDetected, onError }: FaceScannerPro
   const streamRef = useRef<MediaStream | null>(null);
   const detectingRef = useRef(false);
 
-  // Démarrage caméra
   useEffect(() => {
     if (!active) return;
     let cancelled = false;
@@ -44,7 +43,6 @@ const FaceScanner = ({ active, status, onFaceDetected, onError }: FaceScannerPro
     };
   }, [active]);
 
-  // Boucle de détection
   useEffect(() => {
     if (!active || status === "success") return;
     let running = true;
@@ -87,7 +85,6 @@ const FaceScanner = ({ active, status, onFaceDetected, onError }: FaceScannerPro
     };
   }, [active, status]);
 
-  // Boucle d'animation du maillage Face ID
   useEffect(() => {
     if (!active) return;
     const canvas = canvasRef.current;
@@ -129,7 +126,6 @@ const FaceScanner = ({ active, status, onFaceDetected, onError }: FaceScannerPro
 
         const color = getColor();
 
-        // Connexions du maillage
         ctx.lineWidth = 1;
         for (const [i, j] of FACE_MESH_CONNECTIONS) {
           if (i >= points.length || j >= points.length) continue;
@@ -144,12 +140,10 @@ const FaceScanner = ({ active, status, onFaceDetected, onError }: FaceScannerPro
           ctx.stroke();
         }
 
-        // Points (dots)
         for (let idx = 0; idx < points.length; idx++) {
           const p = points[idx];
           const b = getBrightness(p.y);
 
-          // Glow
           if (b > 0.5) {
             ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${b * 0.15})`;
             ctx.beginPath();
@@ -157,14 +151,12 @@ const FaceScanner = ({ active, status, onFaceDetected, onError }: FaceScannerPro
             ctx.fill();
           }
 
-          // Dot
           ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${b * 0.9})`;
           ctx.beginPath();
           ctx.arc(p.x, p.y, status === "success" ? 2.5 : 1.8, 0, Math.PI * 2);
           ctx.fill();
         }
 
-        // Ligne de scan (sweep)
         if (status !== "success") {
           const grad = ctx.createLinearGradient(0, scanY - 30, 0, scanY + 30);
           grad.addColorStop(0, "rgba(120, 160, 255, 0)");
@@ -197,10 +189,10 @@ const FaceScanner = ({ active, status, onFaceDetected, onError }: FaceScannerPro
       : "shadow-[0_0_60px_rgba(120,160,255,0.1)]";
 
   return (
-    <div className="relative w-[280px] h-[370px] mx-auto">
+    <div className="relative w-[220px] h-[290px] sm:w-[260px] sm:h-[340px] md:w-[280px] md:h-[370px] mx-auto">
       {/* Cadre principal */}
       <div
-        className={`absolute inset-0 rounded-[36px] overflow-hidden border-2 transition-all duration-700 ${borderColor} ${glowColor}`}
+        className={`absolute inset-0 rounded-[28px] sm:rounded-[32px] md:rounded-[36px] overflow-hidden border-2 transition-all duration-700 ${borderColor} ${glowColor}`}
       >
         <video
           ref={videoRef}
@@ -213,17 +205,16 @@ const FaceScanner = ({ active, status, onFaceDetected, onError }: FaceScannerPro
           ref={canvasRef}
           className="absolute inset-0 w-full h-full scale-x-[-1]"
         />
-        {/* Overlay sombre pour effet premium */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/20 pointer-events-none" />
       </div>
 
-      {/* Coins décoratifs (style Face ID) */}
+      {/* Coins décoratifs — responsive viewBox */}
       <svg
         className="absolute inset-0 w-full h-full pointer-events-none"
         viewBox="0 0 280 370"
         fill="none"
+        preserveAspectRatio="none"
       >
-        {/* Coin haut-gauche */}
         <path
           d="M36 2 H12 C6 2 2 6 2 12 V36"
           className={`transition-all duration-700 ${
@@ -232,7 +223,6 @@ const FaceScanner = ({ active, status, onFaceDetected, onError }: FaceScannerPro
           strokeWidth="3"
           strokeLinecap="round"
         />
-        {/* Coin haut-droit */}
         <path
           d="M244 2 H268 C274 2 278 6 278 12 V36"
           className={`transition-all duration-700 ${
@@ -241,7 +231,6 @@ const FaceScanner = ({ active, status, onFaceDetected, onError }: FaceScannerPro
           strokeWidth="3"
           strokeLinecap="round"
         />
-        {/* Coin bas-gauche */}
         <path
           d="M2 334 V358 C2 364 6 368 12 368 H36"
           className={`transition-all duration-700 ${
@@ -250,7 +239,6 @@ const FaceScanner = ({ active, status, onFaceDetected, onError }: FaceScannerPro
           strokeWidth="3"
           strokeLinecap="round"
         />
-        {/* Coin bas-droit */}
         <path
           d="M278 334 V358 C278 364 274 368 268 368 H244"
           className={`transition-all duration-700 ${
@@ -261,16 +249,14 @@ const FaceScanner = ({ active, status, onFaceDetected, onError }: FaceScannerPro
         />
       </svg>
 
-      {/* Anneau pulsant pendant le scan */}
       {(status === "scanning" || status === "detected") && (
         <motion.div
-          className="absolute inset-[-6px] rounded-[42px] border border-white/10"
+          className="absolute inset-[-6px] rounded-[34px] sm:rounded-[38px] md:rounded-[42px] border border-white/10"
           animate={{ scale: [1, 1.015, 1], opacity: [0.3, 0.6, 0.3] }}
           transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
         />
       )}
 
-      {/* Checkmark de succès */}
       {status === "success" && (
         <motion.div
           initial={{ scale: 0, opacity: 0 }}
@@ -278,10 +264,10 @@ const FaceScanner = ({ active, status, onFaceDetected, onError }: FaceScannerPro
           transition={{ type: "spring", delay: 0.2 }}
           className="absolute inset-0 flex items-center justify-center"
         >
-          <div className="w-20 h-20 rounded-full bg-green-500/15 backdrop-blur-md flex items-center justify-center border border-green-400/30">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-green-500/15 backdrop-blur-md flex items-center justify-center border border-green-400/30">
             <motion.svg
               viewBox="0 0 24 24"
-              className="w-10 h-10"
+              className="w-8 h-8 sm:w-10 sm:h-10"
               fill="none"
             >
               <motion.path
